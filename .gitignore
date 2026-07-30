@@ -1,0 +1,10 @@
+# Recordings are large binary evidence (~330 MB) and unsuitable for git.
+# recordings/MANIFEST.md carries SHA-256 hashes; treat a checkout without the
+# files as claims-not-reproducible and request them as release assets.
+recordings/*.npz
+recordings/*.bin
+*.port*.bin
+__pycache__/
+*.pyc
+.DS_Store
+host/*.npz

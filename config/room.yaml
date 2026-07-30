@@ -1,0 +1,114 @@
+# Deployment geometry — fill this in WHEN YOU PLACE THE NODES, not afterwards.
+#
+# Every engine above Layer 2 consumes these numbers: VRTI builds its ellipse weights and
+# matched-field kernel from them, and LinkBVP's bistatic gradient g_l(p) bends with them.
+# architecture.md §Calibration asks for ±10 cm. A recording whose node positions were
+# never written down cannot be re-analysed later — it is just bytes.
+#
+# Origin: pick one room corner. +x along one wall, +y along the perpendicular wall,
+# metres, right-handed. Measure to the BOARD's antenna end, not the USB connector.
+
+room:
+  name: "TODO"
+  origin: "TODO — which corner, and which way is +x"
+  size_m: [10.0, 4.5]        # [x, y] extent, for the VRTI grid
+  notes: |
+    HALF-wall (counter height) near node 2, coffee machine adjacent to it.
+
+    ATTRIBUTION REVISED AGAIN 2026-07-30 after the positions/heights were optimised, and
+    the earlier version of this note is now INVERTED — do not trust older copies:
+      - Node 2 is now at h=1.8 m and link 0-2 shows only 4.7 dB of excess loss over free
+        space (was 14.8 dB at floor level, -77 dBm; now -57 dBm). Node 2 is the CLEANEST
+        board in the mesh (7.1 dB mean excess). Elevation, not repositioning, did this:
+        the half-wall/counter and appliance clutter block a floor-level board and not a
+        raised one. There is no "through-wall penalty" on node 2 at this height.
+      - The deficit MOVED to node 3, which sits at h=0.2 m (on the floor). Link 0-3 now
+        carries 14.8 dB excess — the same number node 2 used to have, at a comparable
+        distance (9.57 m vs 8.57 m). Same signature, same suspected cause.
+
+    Measured excess loss over free space, both directions averaged, 1441 rounds,
+    2026-07-30 (nodes in the positions below, two people seated to one side):
+      1-2  17.9 dB   grazes the length of the half-wall/counter
+      3-4  17.5 dB   only 4.43 m, so this is clutter/floor coupling, not distance
+      0-3  14.8 dB   node 3 on the floor
+      0-4  10.4 dB | 0-1 10.0 | 1-3  9.7   typical furnished-room clutter
+      2-4   5.7 dB | 1-4  4.9 | 0-2  4.7 | 2-3 0.0 (reference, cleanest link)
+    Caveat: the cleanest link sets the reference, so absolute excess carries ~3 dB of
+    uncertainty. RELATIVE ordering is the reliable part.
+
+    Note connectivity is NOT the problem: all 20 directed links run 97-100% reception
+    with 0 CRC errors. Excess loss costs sensing SNR, not packets.
+
+    TODO: record where the half-wall runs, and which other links cross it.
+
+# TDM: every node transmits AND receives, so these are nodes, not "listeners".
+# A node needs USB only to STREAM; one on a charger still contributes every link, because
+# a pair is observed if EITHER end is connected. 4 nodes / 3 cables = all 6 links.
+nodes:
+  - node_id: 0            # MASTER — owns the round counter (the system clock)
+    mac: "ac:a7:04:1d:a9:94"
+    port: "/dev/cu.usbmodem5B901293711"
+    xy_m: [9.5, 4.5]      # measured 2026-07-29
+    height_m: 1.2
+  - node_id: 1
+    mac: "ac:a7:04:ed:f3:bc"
+    port: "/dev/cu.usbmodem5B5E1052731"
+    xy_m: [9.0, 0.4]      # measured 2026-07-29
+    height_m: 0.8
+  - node_id: 2            # on a USB CHARGER, no data cable — still fully in the mesh
+    mac: "ac:a7:04:ee:46:a4"
+    port: null
+    xy_m: [2.0, 0.4]      # measured 2026-07-30
+                          # h=1.8 m: was the WORST board at floor level (-77 dBm), now the
+                          # CLEANEST (4.7 dB excess on 0-2). See room.notes.
+    height_m: 1.8
+  - node_id: 3
+    mac: "ac:a7:04:ee:1a:34"
+    port: "/dev/cu.usbmodem5B5E1046781"
+    xy_m: [0.2, 3.8]      # measured 2026-07-30
+    height_m: 0.8         # raised from 0.2 m on 2026-07-30 (and moved ~0.3 m). After the
+                          # raise, link 0-3 is among the cleanest in the mesh (was 14.8 dB
+                          # excess at floor level). Caveat: the fleet changed channel
+                          # (6 -> 11) the same evening, which re-rolls multipath fades, so
+                          # per-link before/after deltas are confounded — the ch11
+                          # excess-loss table in room.notes is the self-consistent view.
+  - node_id: 4            # CENTRE of the room, on a USB charger
+    mac: "ac:a7:04:12:59:90"
+    port: null
+    xy_m: [4, 2.2]      # TODO confirm against the tape measure
+    height_m: 0.8
+    notes: |
+      Added 2026-07-29. Reported as having a broken antenna; measured otherwise —
+      side by side with node 0 it received EQUAL OR BETTER on every common transmitter
+      (tx2 -56 vs -63 dBm) and transmits at -23 dBm into node 0, the strongest in the
+      mesh. Only verified at desk range, so a deficit that only bites at 8 m is not
+      excluded. Chosen position: centre maximises WORST-VOXEL sensitivity (0.128 vs
+      0.075 for four corners = 1.72x), which is the metric that failed the far-end
+      detection test; every candidate scored 100% on conditioning, so conditioning
+      could not discriminate.
+
+# Sanity check before trusting any map: with K listeners on one beacon you have K links,
+# not K(K-1)/2 — the star topology only gives beacon→listener paths. Round-robin TDM
+# (roadmap M3) is what unlocks all-pairs.
+#
+# GEOMETRY NOTE (updated 2026-07-29, after the nodes were spread).
+# The earlier warning here described nodes 1 and 2 clustered ~1.6 m apart at the desk,
+# which made every bistatic gradient near-parallel. That placement is GONE: the nodes now
+# bracket the room (corners + centre), and the measured conditioning is cond(G) median
+# ~2.7 with 100% of the room under cond<10.
+# What is NOT fixed by good conditioning:
+#   - SENSITIVITY. The M2 walk attempt still failed at chance. Conditioning says the
+#     inverse problem is well-posed; it says nothing about whether a disturbance is
+#     detectable. Node 2's links moved only 1.3-2.9x with a person standing AT node 2.
+#   - Link COUNT. 7 recorded links is below the ~10 that theory.md 3.2 calls
+#     "coarse zone-level". RESOLVED 2026-07-30: protocol v3 backhaul delivers all 10
+#     unique pairs on one cable.
+#
+# GEOMETRY OF THE NEW PLACEMENT (computed 2026-07-30 from the coordinates below):
+#   cond(G) median 1.85, 100% of the room under cond<10 (old 7-link setup: 2.13 / 100%)
+#   worst-voxel sensitivity 0.1168 vs 0.0672 old = 1.74x better
+#   least-observable spot: (6.2, 4.2) m — between node 0 and node 4, along the far wall
+# Both metrics improved, and link count crossed the ~10 threshold. This is the first
+# geometry where a VRTI failure could NOT be blamed on starvation, which is exactly what
+# makes the next station test decisive.
+channel: 6
