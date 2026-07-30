@@ -24,6 +24,58 @@ as exactly that.
    └───────────────────────────────────────────────────┘
 ```
 
+## Background: what "CSI sensing" is, and whose shoulders this stands on
+
+**Channel State Information (CSI)** is the radio's own measurement of how a WiFi signal was
+distorted on its way from transmitter to receiver — per OFDM subcarrier, an amplitude and
+phase describing the multipath channel. Every packet carries training fields the receiver
+already knows, so it can solve for that distortion. A human body is a bag of saltwater that
+reflects and blocks 2.4 GHz radio; when a person moves, they perturb the multipath, and the
+CSI changes. **CSI sensing turns those changes into information about people — presence,
+motion, location, even breathing — using radios that were never meant to be sensors.** It's
+sometimes called "WiFi sensing" or, less charitably, RF surveillance, because it needs no
+camera, works in the dark, and sees through interior walls. The IEEE ratified a standard for
+it (802.11bf) in September 2025.
+
+The catch, and the reason this repo exists, is that **the headline results in the literature
+were achieved on hardware categorically better than a bare ESP32.** Three lineages of prior
+work matter here:
+
+- **Radio tomography (the honest through-wall result).** Patwari & Wilson (IEEE TMC 2010;
+  arXiv:0909.5417) showed that surrounding a space with K cheap radios gives K(K−1)/2 links
+  whose Fresnel ellipses tile the room; a body perturbs exactly the links it intersects, and
+  a regularized linear inverse turns link changes into an *image*. Their through-wall variant
+  images link **variance** (only moving things light up) and tracked a person through
+  exterior walls at ~0.9 m error in 2010 — using radios that reported only signal strength.
+  A 2025 *Scientific Reports* paper reproduced this on our exact hardware class: 14 ESP32
+  nodes, 92.5% localization. **This is the method wisent's VRTI engine implements**, and the
+  14-node result is the bar it is measured against.
+
+- **Vitals and CSI-ratio methods (mostly closed to us).** FarSense (IMWUT 2019), PhaseBeat,
+  and DensePose-from-WiFi extract breathing, heartbeat, or body pose by *dividing signals
+  from two receive antennas that share one oscillator* — which cancels the random per-packet
+  phase. A 1×1 ESP32 has one antenna and one oscillator: there is nothing to divide by, so
+  these are physically out of reach. PulseFi (2025) did get 0.09-bpm breathing on ESP32s, but
+  from amplitude on a well-placed single link, not the ratio trick.
+
+- **Doppler and cross-room transfer (Widar3.0, MobiSys 2019).** Learned WiFi-sensing models
+  memorize the room and collapse elsewhere. Widar3.0's cure is a *body-coordinate velocity
+  profile* — the body's actual velocity, a room-invariant physical quantity — recovered by
+  fusing Doppler from multiple receivers at different bearings. It needs signed Doppler, which
+  needs coherent phase, which needs multiple antennas. Our `linkbvp`/`ratios` research channel
+  was an attempt to recover the *sign* from cross-subcarrier ratio winding on single antennas
+  instead — and it is the one that **failed its own hardware test** (see below).
+
+**What wisent set out to replicate**, then, was the *achievable* half of that landscape on
+the cheapest possible hardware: Patwari-style variance tomography for through-wall motion, and
+Fresnel-diversity respiration — trading the missing antenna array for the three kinds of
+diversity a node swarm *does* have (frequency across ~52 subcarriers, geometry across O(K²)
+links, time across 50–100 Hz sampling). The explicit non-goal, stated up front and enforced in
+the docs, was to *not* claim the antenna-array results (pose, heart rate, identity) that the
+physics forbids on this hardware. `docs/theory.md` is the full argument with every citation;
+this README's "what does not work" table is where we report how far short of even the
+achievable bar we actually landed, and why.
+
 ## What actually works (measured)
 
 | result | number | evidence |
