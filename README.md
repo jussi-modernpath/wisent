@@ -12,17 +12,15 @@ number below traces to an archived capture (SHA-256 in `recordings/MANIFEST.md`)
 failure is written up next to every success, and things we could not prove are labelled
 as exactly that.
 
-```
-     0m   1    2    3    4    5    6    7    8    9   10m
-   ┌───────────────────────────────────────────────────┐
-   │          N2   ▒                             N1    │   5 nodes, 10 links
-   │               ▒                                   │   ▒ = half-wall
-   │                    N4                             │   only N0 has a cable —
-   │                                                   │   the rest relay by air
-   │ N3                                                │
-   │                                              N0═USB
-   └───────────────────────────────────────────────────┘
-```
+![wisent live dashboard](docs/img/live-ui.png)
+
+*The live UI (`host/scripts/live_ui.py`), served from the gateway's single cable. Left: the
+five nodes at measured positions, the VRTI matched field, live per-link lines coloured by
+motion ratio, and the gated position estimate. Right: per-link motion energy over each
+link's own floor (the most trustworthy panel — a direct measurement, no inversion), a
+breathing panel that reports per-link peaks unaveraged, and link health. Every panel is
+labelled with what it is honestly worth: the position dot reads "unproven engine — see
+notes," and abstains rather than guess.*
 
 ## Background: what "CSI sensing" is, and whose shoulders this stands on
 
