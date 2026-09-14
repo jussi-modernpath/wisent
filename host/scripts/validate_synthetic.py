@@ -43,7 +43,7 @@ def check(name, ok, detail):
 host = pathlib.Path(__file__).resolve().parents[1]
 live = [host / "wisent" / f for f in
         ("csi_io.py", "sanitize.py", "features.py", "vrti.py", "breathing.py",
-         "linkbvp.py", "ratios.py", "observability.py")]
+         "linkbvp.py", "ratios.py", "observability.py", "placement.py")]
 live += [host / "scripts" / f for f in
          ("live_capture.py", "walk_test.py", "station_test.py")]
 offenders = [p.name for p in live
