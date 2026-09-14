@@ -1,0 +1,168 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "command -v modernpath >/dev/null 2>&1 && modernpath check --hook PreToolUse 2>/dev/null || printf '{}'",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "command": "command -v modernpath >/dev/null 2>&1 && ( modernpath factory sync --if-quiescent --trigger SessionEnd >/dev/null 2>&1 & ) ; exit 0",
+            "timeout": 10,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "command -v modernpath >/dev/null 2>&1 && ( modernpath factory sync --if-quiescent --trigger SessionStart >/dev/null 2>&1 & ) ; exit 0",
+            "timeout": 10,
+            "type": "command"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "command": "command -v modernpath >/dev/null 2>&1 && modernpath your-move --hook SessionStart 2>/dev/null || printf '{}'",
+            "timeout": 15,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "command -v modernpath >/dev/null 2>&1 && ( modernpath factory sync --if-quiescent --trigger Stop >/dev/null 2>&1 & ) ; exit 0",
+            "timeout": 10,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "command -v modernpath >/dev/null 2>&1 && modernpath context --hook UserPromptSubmit 2>/dev/null || echo '{}'",
+            "timeout": 60,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(modernpath --version)",
+      "Bash(.modernpath/bin/modernpath --version)",
+      "Bash(modernpath --help)",
+      "Bash(.modernpath/bin/modernpath --help)",
+      "Bash(modernpath help *)",
+      "Bash(.modernpath/bin/modernpath help *)",
+      "Bash(modernpath process next*)",
+      "Bash(.modernpath/bin/modernpath process next*)",
+      "Bash(modernpath process check *)",
+      "Bash(.modernpath/bin/modernpath process check *)",
+      "Bash(modernpath process findings list*)",
+      "Bash(.modernpath/bin/modernpath process findings list*)",
+      "Bash(modernpath working-set pull *)",
+      "Bash(.modernpath/bin/modernpath working-set pull *)",
+      "Bash(modernpath working-set check*)",
+      "Bash(.modernpath/bin/modernpath working-set check*)",
+      "Bash(modernpath your-move*)",
+      "Bash(.modernpath/bin/modernpath your-move*)",
+      "Bash(modernpath factory status*)",
+      "Bash(.modernpath/bin/modernpath factory status*)",
+      "Bash(modernpath factory gates *)",
+      "Bash(.modernpath/bin/modernpath factory gates *)",
+      "Bash(modernpath status*)",
+      "Bash(.modernpath/bin/modernpath status*)",
+      "Bash(modernpath check *)",
+      "Bash(.modernpath/bin/modernpath check *)",
+      "Bash(modernpath coverage *)",
+      "Bash(.modernpath/bin/modernpath coverage *)",
+      "Bash(modernpath requirements-corpus *)",
+      "Bash(.modernpath/bin/modernpath requirements-corpus *)",
+      "Bash(modernpath search *)",
+      "Bash(.modernpath/bin/modernpath search *)",
+      "Bash(modernpath read-doc *)",
+      "Bash(.modernpath/bin/modernpath read-doc *)",
+      "Bash(modernpath read-file *)",
+      "Bash(.modernpath/bin/modernpath read-file *)",
+      "Bash(modernpath env)",
+      "Bash(.modernpath/bin/modernpath env)",
+      "Bash(modernpath env test*)",
+      "Bash(.modernpath/bin/modernpath env test*)",
+      "Bash(modernpath install --check*)",
+      "Bash(.modernpath/bin/modernpath install --check*)",
+      "Bash(modernpath auth *)",
+      "Bash(.modernpath/bin/modernpath auth *)",
+      "Bash(modernpath author requirement *)",
+      "Bash(.modernpath/bin/modernpath author requirement *)",
+      "Bash(modernpath author epic *)",
+      "Bash(.modernpath/bin/modernpath author epic *)",
+      "Bash(modernpath author update *)",
+      "Bash(.modernpath/bin/modernpath author update *)",
+      "Bash(modernpath author member *)",
+      "Bash(.modernpath/bin/modernpath author member *)",
+      "Bash(modernpath author relate *)",
+      "Bash(.modernpath/bin/modernpath author relate *)",
+      "Bash(modernpath author trace *)",
+      "Bash(.modernpath/bin/modernpath author trace *)",
+      "Bash(modernpath author gate *)",
+      "Bash(.modernpath/bin/modernpath author gate *)",
+      "Bash(modernpath author backlog *)",
+      "Bash(.modernpath/bin/modernpath author backlog *)",
+      "Bash(modernpath feedback *)",
+      "Bash(.modernpath/bin/modernpath feedback *)",
+      "Bash(modernpath factory evidence *)",
+      "Bash(.modernpath/bin/modernpath factory evidence *)",
+      "Bash(modernpath factory sync*)",
+      "Bash(.modernpath/bin/modernpath factory sync*)",
+      "Bash(modernpath working-set select *)",
+      "Bash(.modernpath/bin/modernpath working-set select *)",
+      "Bash(modernpath working-set push*)",
+      "Bash(.modernpath/bin/modernpath working-set push*)",
+      "Bash(modernpath process reconcile *)",
+      "Bash(.modernpath/bin/modernpath process reconcile *)",
+      "Bash(modernpath process findings add *)",
+      "Bash(.modernpath/bin/modernpath process findings add *)",
+      "Bash(modernpath factory answer *)",
+      "Bash(.modernpath/bin/modernpath factory answer *)",
+      "Bash(modernpath author advance *)",
+      "Bash(.modernpath/bin/modernpath author advance *)",
+      "Bash(modernpath author gate-withdraw *)",
+      "Bash(.modernpath/bin/modernpath author gate-withdraw *)",
+      "Bash(modernpath process findings disposition *)",
+      "Bash(.modernpath/bin/modernpath process findings disposition *)"
+    ],
+    "ask": [
+      "Bash(modernpath factory release *)",
+      "Bash(.modernpath/bin/modernpath factory release *)",
+      "Bash(modernpath process cascade-mode *)",
+      "Bash(.modernpath/bin/modernpath process cascade-mode *)",
+      "Bash(modernpath process supersede *)",
+      "Bash(.modernpath/bin/modernpath process supersede *)",
+      "Bash(modernpath migrate *)",
+      "Bash(.modernpath/bin/modernpath migrate *)",
+      "Bash(modernpath env --set*)",
+      "Bash(.modernpath/bin/modernpath env --set*)"
+    ]
+  }
+}
