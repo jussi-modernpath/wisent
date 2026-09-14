@@ -43,7 +43,7 @@ def check(name, ok, detail):
 host = pathlib.Path(__file__).resolve().parents[1]
 live = [host / "wisent" / f for f in
         ("csi_io.py", "sanitize.py", "features.py", "vrti.py", "breathing.py",
-         "linkbvp.py", "ratios.py", "observability.py")]
+         "linkbvp.py", "ratios.py", "observability.py", "placement.py")]
 live += [host / "scripts" / f for f in
          ("live_capture.py", "walk_test.py", "station_test.py")]
 offenders = [p.name for p in live
@@ -318,6 +318,205 @@ check("signed-doppler-unfold", ok,
       f"(err {h_err_s:.1f}, mirror rejected by {mirror_gap:.0f} deg, "
       f"{res_s['n_links']} links, speed {res_s['speed']:.2f})" if res_s
       else "inversion returned None")
+
+# ---------- placement (EPIC-PLACE-001) ----------
+# Every placement check catches its own failure: the expected RED for these is a
+# missing module or a missing script, and that must not take the rest of the suite
+# down with it (the check() harness has no try/except of its own).
+ROOM_NODES = {0: (9.5, 4.5), 1: (9.0, 0.4), 2: (2.0, 0.4), 3: (0.2, 3.8), 4: (4.0, 2.2)}
+ROOM_SIZE = (10.0, 4.5)              # config/room.yaml, measured 2026-07-29/30
+ROOM_FILE = host.parent / "config" / "room.yaml"
+PLACEMENT_SCRIPT = host / "scripts" / "placement.py"
+
+
+def placement_check(name, fn):
+    """fn() -> (ok, detail); any exception is this check's FAIL, not the suite's."""
+    try:
+        ok, detail = fn()
+    except Exception as e:  # noqa: BLE001 — the RED is whatever fails, ImportError included
+        ok, detail = False, f"{type(e).__name__}: {e}"
+    check(name, ok, detail)
+
+
+def run_placement(*args):
+    """Run scripts/placement.py the way the operator does: from host/, sys.executable."""
+    import subprocess
+    r = subprocess.run([sys.executable, str(PLACEMENT_SCRIPT), *args],
+                       cwd=str(host), capture_output=True, text=True)
+    return r.returncode, r.stdout, r.stderr
+
+
+def parse_metrics(out):
+    """The four contract lines of REQ-PLACE-003 C1 -> dict, or None if any is missing."""
+    m = {}
+    w = re.search(r"^worst-voxel sensitivity: ([\d.]+) at \(([\d.]+), ([\d.]+)\)$", out, re.M)
+    c = re.search(r"^cond\(G\) median: ([\d.]+)$", out, re.M)
+    f = re.search(r"^room under cond<10: (\d+)%$", out, re.M)
+    n = re.search(r"^nodes: (\d+) from (\S+)$", out, re.M)
+    if not (w and c and f and n):
+        return None
+    m["worst"], m["xy"] = float(w.group(1)), (float(w.group(2)), float(w.group(3)))
+    m["cond"], m["pct"], m["n"] = float(c.group(1)), int(f.group(1)), int(n.group(1))
+    return m
+
+
+# --- UR-PLACE-001 upper evidence: the scenarios' own commands, end to end.
+def _ur_s1():
+    rc, out, err = run_placement()                     # S1: bare command from host/
+    m = parse_metrics(out)
+    ok = (rc == 0 and m is not None and abs(m["worst"] - 0.12) <= 0.01
+          and m["xy"] == (6.2, 4.2) and abs(m["cond"] - 1.85) <= 0.02 and m["pct"] == 100)
+    return ok, (f"exit {rc}: worst {m['worst']} at {m['xy']}, cond {m['cond']}, {m['pct']}% "
+                f"(room.yaml hand values 0.1168 at (6.2, 4.2), 1.85, 100%)" if m
+                else f"exit {rc}, no metric lines; stderr: {err.strip()[:120]}")
+
+
+def _ur_s2():
+    rc1, out1, err1 = run_placement("--optimize", "--seed", "0")   # S2: as written
+    rc2, out2, _ = run_placement("--optimize", "--seed", "0")
+    m = parse_metrics(out1)
+    o = re.search(r"^optimized worst-voxel sensitivity: ([\d.]+) at \(([\d.]+), ([\d.]+)\)"
+                  r"  \(([\d.]+)x current\)$", out1, re.M)
+    nodes = re.findall(r"^node (\d+): \[([\d.]+), ([\d.]+)\]$", out1, re.M)
+    inside = all(0 <= float(x) <= ROOM_SIZE[0] and 0 <= float(y) <= ROOM_SIZE[1]
+                 for _, x, y in nodes)
+    ok = (rc1 == 0 and m is not None and o is not None and float(o.group(4)) >= 1.0
+          and float(o.group(1)) >= m["worst"] and len(nodes) == 5 and inside and out1 == out2)
+    return ok, (f"optimized {o.group(1)} vs current {m['worst']} ({o.group(4)}x), "
+                f"{len(nodes)} node lines inside the room, same seed -> identical output: "
+                f"{out1 == out2}" if (m and o) else
+                f"exit {rc1}, missing lines; stderr: {err1.strip()[:120]}")
+
+
+placement_check("placement-ur-s1-score-current", _ur_s1)
+placement_check("placement-ur-s2-better-layout", _ur_s2)
+
+
+# --- REQ-PLACE-001 lower evidence: layout_metrics.
+def _kernel_matches():                                  # C1: one geometry model
+    from wisent.placement import link_sensitivity, link_gradient
+    from wisent.observability import bistatic_sensitivity
+    from wisent.linkbvp import bistatic_gradient
+    pts = np.array([[1.0, 1.0], [6.2, 4.2], [4.0, 2.2], [9.4, 0.2], [0.2, 4.2]])
+    tx, rx = np.array(ROOM_NODES[0]), np.array(ROOM_NODES[3])
+    s_vec, s_ref = link_sensitivity(tx, rx, pts), np.array([bistatic_sensitivity(tx, rx, p) for p in pts])
+    g_vec, g_ref = link_gradient(tx, rx, pts), np.array([bistatic_gradient(tx, rx, p) for p in pts])
+    ok = np.allclose(s_vec, s_ref, rtol=1e-9, atol=1e-12) and np.allclose(g_vec, g_ref, rtol=1e-9, atol=1e-12)
+    return ok, (f"vectorised kernels equal bistatic_sensitivity / bistatic_gradient at {len(pts)} "
+                f"points (max |diff| {max(np.abs(s_vec - s_ref).max(), np.abs(g_vec - g_ref).max()):.1e})")
+
+
+def _metrics_reproduce():                               # C2: the 2026-07-30 hand numbers
+    from wisent.placement import layout_metrics
+    m = layout_metrics(ROOM_NODES, ROOM_SIZE)
+    ok = (abs(m["worst_voxel"] - 0.119) <= 0.005 and np.allclose(m["worst_xy"], (6.2, 4.2), atol=1e-6)
+          and abs(m["cond_median"] - 1.85) <= 0.02 and m["cond_frac_ok"] == 1.0)
+    return ok, (f"worst {m['worst_voxel']:.4f} at ({m['worst_xy'][0]:.1f}, {m['worst_xy'][1]:.1f}) "
+                f"[hand: 0.1168 at (6.2, 4.2)], cond median {m['cond_median']:.3f} [hand 1.85], "
+                f"{100 * m['cond_frac_ok']:.0f}% under cond 10 [hand 100%], grid {m['grid_shape']}")
+
+
+def _metrics_sensitive():                               # C2: the metric moves with the layout
+    from wisent.placement import layout_metrics
+    full = layout_metrics(ROOM_NODES, ROOM_SIZE)["worst_voxel"]
+    four = layout_metrics({k: v for k, v in ROOM_NODES.items() if k != 4}, ROOM_SIZE)["worst_voxel"]
+    return four < full, f"5 nodes {full:.4f} > without the centre node {four:.4f}"
+
+
+placement_check("placement-kernel-matches", _kernel_matches)
+placement_check("placement-metrics-reproduce", _metrics_reproduce)
+placement_check("placement-metrics-sensitive", _metrics_sensitive)
+check("placement-live-path-listed", any(p.name == "placement.py" for p in live),   # C3
+      "placement.py is enumerated by the sim-isolation check"
+      if any(p.name == "placement.py" for p in live)
+      else "placement.py is NOT in the sim-isolation live list")
+
+# --- REQ-PLACE-002 lower evidence: optimize.
+def _optimize_beats():                                  # C1: never worse than any candidate
+    from wisent.placement import optimize, layout_metrics
+    room = (6.0, 4.0)
+    current = {0: (0.3, 0.3), 1: (0.6, 0.3), 2: (0.3, 0.6), 3: (0.6, 0.6)}   # a bad, clustered layout
+    best, m, evaluated = optimize(room, 4, current=current, n_candidates=50, seed=1)
+    top = max(mm["worst_voxel"] for _, mm in evaluated)
+    cur = layout_metrics(current, room)["worst_voxel"]
+    inside = all(0 <= x <= room[0] and 0 <= y <= room[1] for x, y in best.values())
+    ok = (m["worst_voxel"] >= top and m["worst_voxel"] >= cur and inside and len(best) == 4
+          and evaluated[0][1]["worst_voxel"] == cur)
+    return ok, (f"best {m['worst_voxel']:.4f} >= max over {len(evaluated)} evaluated {top:.4f}, "
+                f">= current {cur:.4f} (candidate 0), 4 nodes inside the room")
+
+
+def _optimize_hand():                                   # C2: node 4 free, seeded
+    from wisent.placement import optimize
+    fixed = {k: ROOM_NODES[k] for k in (0, 1, 2, 3)}
+    a = optimize(ROOM_SIZE, 5, fixed=fixed, current=ROOM_NODES, seed=0)
+    b = optimize(ROOM_SIZE, 5, fixed=fixed, current=ROOM_NODES, seed=0)
+    same = a[0].keys() == b[0].keys() and all(np.allclose(a[0][k], b[0][k]) for k in a[0])
+    held = all(np.allclose(a[0][k], fixed[k]) for k in fixed)
+    ok = a[1]["worst_voxel"] >= 0.119 and same and held
+    return ok, (f"worst {a[1]['worst_voxel']:.4f} with node 4 -> ({a[0][4][0]:.2f}, {a[0][4][1]:.2f}) "
+                f"[hand placement (4.0, 2.2): 0.1188]; nodes 0-3 held: {held}; seed 0 twice identical: {same}")
+
+
+placement_check("placement-optimize-beats-candidates", _optimize_beats)
+placement_check("placement-optimize-matches-hand-placement", _optimize_hand)
+
+# --- REQ-PLACE-003 lower evidence: the operator script, via subprocess.
+def _script_metrics():                                  # C1: the four contract lines
+    rc, out, err = run_placement("--room", str(ROOM_FILE))
+    m = parse_metrics(out)
+    ok = rc == 0 and m is not None and m["n"] == 5 and err == ""
+    return ok, (f"exit {rc}; nodes {m['n']}, worst {m['worst']} at {m['xy']}, cond {m['cond']}, "
+                f"{m['pct']}%" if m else f"exit {rc}, contract lines missing; stderr: {err.strip()[:100]}")
+
+
+def _script_optimize():                                 # C2: --optimize --fix
+    rc, out, err = run_placement("--optimize", "--seed", "0", "--fix", "0,1,2,3",
+                                 "--room", str(ROOM_FILE))
+    m = parse_metrics(out)
+    o = re.search(r"^optimized worst-voxel sensitivity: ([\d.]+) at \(([\d.]+), ([\d.]+)\)"
+                  r"  \(([\d.]+)x current\)$", out, re.M)
+    nodes = {int(i): (float(x), float(y))
+             for i, x, y in re.findall(r"^node (\d+): \[([\d.]+), ([\d.]+)\]$", out, re.M)}
+    held = all(nodes.get(k) == ROOM_NODES[k] for k in (0, 1, 2, 3))
+    ok = (rc == 0 and m is not None and o is not None and float(o.group(4)) >= 1.0
+          and len(nodes) == 5 and held)
+    return ok, (f"exit {rc}; optimized {o.group(1)} ({o.group(4)}x current), {len(nodes)} node lines, "
+                f"nodes 0-3 unchanged: {held}, node 4 -> {nodes.get(4)}" if (m and o)
+                else f"exit {rc}, lines missing; stderr: {err.strip()[:100]}")
+
+
+def _script_refuses():                                  # C3: four refusals, one line each
+    import tempfile
+    src = ROOM_FILE.read_text()
+    cases = {
+        "no size_m": (re.sub(r"^\s*size_m:.*$", "", src, flags=re.M), "has no size_m"),
+        "node 4 without xy_m": (re.sub(r"^(\s*xy_m: \[4, 2\.2\].*)$", "", src, flags=re.M),
+                                "has no xy_m for node(s) 4"),
+        "no node block": (re.sub(r"^\s*-?\s*node_id:.*$", "", src, flags=re.M), "has no nodes"),
+    }
+    results = []
+    with tempfile.TemporaryDirectory() as d:
+        for name, (text, expect) in cases.items():
+            f = pathlib.Path(d) / (name.replace(" ", "_") + ".yaml")
+            f.write_text(text)
+            rc, out, err = run_placement("--room", str(f))
+            lines = err.strip().splitlines()
+            good = (rc == 2 and out == "" and len(lines) == 1 and expect in lines[0]
+                    and lines[0].startswith("placement: ") and "Traceback" not in err)
+            results.append((name, good, rc, lines[-1][-60:] if lines else "<no stderr>"))
+        rc, out, err = run_placement("--room", str(pathlib.Path(d) / "does-not-exist.yaml"))
+        lines = err.strip().splitlines()
+        good = (rc == 2 and out == "" and len(lines) == 1 and "not found" in lines[0]
+                and lines[0].startswith("placement: ") and "Traceback" not in err)
+        results.append(("missing file", good, rc, lines[-1][-60:] if lines else "<no stderr>"))
+    ok = all(g for _, g, _, _ in results)
+    return ok, "; ".join(f"{n}: exit {rc} '{line}'" for n, _, rc, line in results)
+
+
+placement_check("placement-script-prints-metrics", _script_metrics)
+placement_check("placement-script-optimize", _script_optimize)
+placement_check("placement-script-refuses-missing", _script_refuses)
 
 # ---------- summary ----------
 n_ok = sum(ok for _, ok in results)
