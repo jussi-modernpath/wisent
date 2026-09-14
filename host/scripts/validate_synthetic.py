@@ -431,6 +431,36 @@ check("placement-live-path-listed", any(p.name == "placement.py" for p in live),
       if any(p.name == "placement.py" for p in live)
       else "placement.py is NOT in the sim-isolation live list")
 
+# --- REQ-PLACE-002 lower evidence: optimize.
+def _optimize_beats():                                  # C1: never worse than any candidate
+    from wisent.placement import optimize, layout_metrics
+    room = (6.0, 4.0)
+    current = {0: (0.3, 0.3), 1: (0.6, 0.3), 2: (0.3, 0.6), 3: (0.6, 0.6)}   # a bad, clustered layout
+    best, m, evaluated = optimize(room, 4, current=current, n_candidates=50, seed=1)
+    top = max(mm["worst_voxel"] for _, mm in evaluated)
+    cur = layout_metrics(current, room)["worst_voxel"]
+    inside = all(0 <= x <= room[0] and 0 <= y <= room[1] for x, y in best.values())
+    ok = (m["worst_voxel"] >= top and m["worst_voxel"] >= cur and inside and len(best) == 4
+          and evaluated[0][1]["worst_voxel"] == cur)
+    return ok, (f"best {m['worst_voxel']:.4f} >= max over {len(evaluated)} evaluated {top:.4f}, "
+                f">= current {cur:.4f} (candidate 0), 4 nodes inside the room")
+
+
+def _optimize_hand():                                   # C2: node 4 free, seeded
+    from wisent.placement import optimize
+    fixed = {k: ROOM_NODES[k] for k in (0, 1, 2, 3)}
+    a = optimize(ROOM_SIZE, 5, fixed=fixed, current=ROOM_NODES, seed=0)
+    b = optimize(ROOM_SIZE, 5, fixed=fixed, current=ROOM_NODES, seed=0)
+    same = a[0].keys() == b[0].keys() and all(np.allclose(a[0][k], b[0][k]) for k in a[0])
+    held = all(np.allclose(a[0][k], fixed[k]) for k in fixed)
+    ok = a[1]["worst_voxel"] >= 0.119 and same and held
+    return ok, (f"worst {a[1]['worst_voxel']:.4f} with node 4 -> ({a[0][4][0]:.2f}, {a[0][4][1]:.2f}) "
+                f"[hand placement (4.0, 2.2): 0.1188]; nodes 0-3 held: {held}; seed 0 twice identical: {same}")
+
+
+placement_check("placement-optimize-beats-candidates", _optimize_beats)
+placement_check("placement-optimize-matches-hand-placement", _optimize_hand)
+
 # ---------- summary ----------
 n_ok = sum(ok for _, ok in results)
 print(f"\n{n_ok}/{len(results)} checks passed")
