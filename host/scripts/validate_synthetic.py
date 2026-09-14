@@ -493,7 +493,7 @@ def _script_refuses():                                  # C3: four refusals, one
         "no size_m": (re.sub(r"^\s*size_m:.*$", "", src, flags=re.M), "has no size_m"),
         "node 4 without xy_m": (re.sub(r"^(\s*xy_m: \[4, 2\.2\].*)$", "", src, flags=re.M),
                                 "has no xy_m for node(s) 4"),
-        "no node block": (re.sub(r"^\s*node_id:.*$", "", src, flags=re.M), "has no nodes"),
+        "no node block": (re.sub(r"^\s*-?\s*node_id:.*$", "", src, flags=re.M), "has no nodes"),
     }
     results = []
     with tempfile.TemporaryDirectory() as d:
@@ -504,12 +504,12 @@ def _script_refuses():                                  # C3: four refusals, one
             lines = err.strip().splitlines()
             good = (rc == 2 and out == "" and len(lines) == 1 and expect in lines[0]
                     and lines[0].startswith("placement: ") and "Traceback" not in err)
-            results.append((name, good, rc, lines[-1][:80] if lines else "<no stderr>"))
+            results.append((name, good, rc, lines[-1][-60:] if lines else "<no stderr>"))
         rc, out, err = run_placement("--room", str(pathlib.Path(d) / "does-not-exist.yaml"))
         lines = err.strip().splitlines()
         good = (rc == 2 and out == "" and len(lines) == 1 and "not found" in lines[0]
                 and lines[0].startswith("placement: ") and "Traceback" not in err)
-        results.append(("missing file", good, rc, lines[-1][:80] if lines else "<no stderr>"))
+        results.append(("missing file", good, rc, lines[-1][-60:] if lines else "<no stderr>"))
     ok = all(g for _, g, _, _ in results)
     return ok, "; ".join(f"{n}: exit {rc} '{line}'" for n, _, rc, line in results)
 
