@@ -1,7 +1,7 @@
 """wisent — WiFi sensing toolkit for ESP32 swarms.
 
 Live-path modules: csi_io, sanitize, features, vrti, breathing, linkbvp,
-ratios, observability.
+ratios, observability, placement.
 Test-only module: sim (physics-based synthetic CSI). Live-path modules MUST NOT
 import sim — this separation is checked by scripts/validate_synthetic.py.
 """

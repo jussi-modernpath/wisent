@@ -160,12 +160,14 @@ firmware/mesh_audit/ 60-second "can this AP be harvested?" field instrument
 host/wisent/         csi_io (wire parsing, LTF handling)  sanitize  features
                      vrti (imaging + calibrated matched-field locate)  breathing
                      linkbvp + ratios (signed-Doppler research channel, gated)
-                     observability (starvation-vs-physics diagnostics)  sim (synthetic
-                     validation ONLY — a test asserts it never touches the live path)
+                     observability (starvation-vs-physics diagnostics)  placement (layout
+                     scoring + search from the same kernels)  sim (synthetic validation
+                     ONLY — a test asserts it never touches the live path)
 host/scripts/        live_ui.py (browser dashboard: map, per-link bars, gated dot)
                      station_test.py (self-cueing, self-scoring ground-truth runs
                      with voice + big-screen prompts)  live_capture.py  walk_test.py
-                     validate_synthetic.py (12)  validate_protocol.py (40)
+                     placement.py (score config/room.yaml's layout, --optimize a better one)
+                     validate_synthetic.py (23)  validate_protocol.py (40)
 config/room.yaml     measured geometry — every engine consumes it
 config/vrti_gains.json  the localization calibration (per-deployment by design)
 docs/                theory, architecture, roadmap (results tables incl. failures),
@@ -193,6 +195,11 @@ arduino-cli upload -p <port> --fqbn esp32:esp32:esp32s3:CDCOnBoot=default firmwa
 
 # live dashboard
 python scripts/live_ui.py         # -> http://127.0.0.1:8760
+
+# where to put the boards: score the layout in config/room.yaml, or improve it
+# (--fix keeps named nodes where they are; the search knows nothing about walls or power)
+python scripts/placement.py
+python scripts/placement.py --optimize --fix 0,1,2,3
 
 # calibration run for a new room (fill config/room.yaml first — measured positions)
 python scripts/station_test.py --out my_room.npz
