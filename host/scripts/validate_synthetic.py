@@ -319,6 +319,118 @@ check("signed-doppler-unfold", ok,
       f"{res_s['n_links']} links, speed {res_s['speed']:.2f})" if res_s
       else "inversion returned None")
 
+# ---------- placement (EPIC-PLACE-001) ----------
+# Every placement check catches its own failure: the expected RED for these is a
+# missing module or a missing script, and that must not take the rest of the suite
+# down with it (the check() harness has no try/except of its own).
+ROOM_NODES = {0: (9.5, 4.5), 1: (9.0, 0.4), 2: (2.0, 0.4), 3: (0.2, 3.8), 4: (4.0, 2.2)}
+ROOM_SIZE = (10.0, 4.5)              # config/room.yaml, measured 2026-07-29/30
+ROOM_FILE = host.parent / "config" / "room.yaml"
+PLACEMENT_SCRIPT = host / "scripts" / "placement.py"
+
+
+def placement_check(name, fn):
+    """fn() -> (ok, detail); any exception is this check's FAIL, not the suite's."""
+    try:
+        ok, detail = fn()
+    except Exception as e:  # noqa: BLE001 — the RED is whatever fails, ImportError included
+        ok, detail = False, f"{type(e).__name__}: {e}"
+    check(name, ok, detail)
+
+
+def run_placement(*args):
+    """Run scripts/placement.py the way the operator does: from host/, sys.executable."""
+    import subprocess
+    r = subprocess.run([sys.executable, str(PLACEMENT_SCRIPT), *args],
+                       cwd=str(host), capture_output=True, text=True)
+    return r.returncode, r.stdout, r.stderr
+
+
+def parse_metrics(out):
+    """The four contract lines of REQ-PLACE-003 C1 -> dict, or None if any is missing."""
+    m = {}
+    w = re.search(r"^worst-voxel sensitivity: ([\d.]+) at \(([\d.]+), ([\d.]+)\)$", out, re.M)
+    c = re.search(r"^cond\(G\) median: ([\d.]+)$", out, re.M)
+    f = re.search(r"^room under cond<10: (\d+)%$", out, re.M)
+    n = re.search(r"^nodes: (\d+) from (\S+)$", out, re.M)
+    if not (w and c and f and n):
+        return None
+    m["worst"], m["xy"] = float(w.group(1)), (float(w.group(2)), float(w.group(3)))
+    m["cond"], m["pct"], m["n"] = float(c.group(1)), int(f.group(1)), int(n.group(1))
+    return m
+
+
+# --- UR-PLACE-001 upper evidence: the scenarios' own commands, end to end.
+def _ur_s1():
+    rc, out, err = run_placement()                     # S1: bare command from host/
+    m = parse_metrics(out)
+    ok = (rc == 0 and m is not None and abs(m["worst"] - 0.12) <= 0.01
+          and m["xy"] == (6.2, 4.2) and abs(m["cond"] - 1.85) <= 0.02 and m["pct"] == 100)
+    return ok, (f"exit {rc}: worst {m['worst']} at {m['xy']}, cond {m['cond']}, {m['pct']}% "
+                f"(room.yaml hand values 0.1168 at (6.2, 4.2), 1.85, 100%)" if m
+                else f"exit {rc}, no metric lines; stderr: {err.strip()[:120]}")
+
+
+def _ur_s2():
+    rc1, out1, err1 = run_placement("--optimize", "--seed", "0")   # S2: as written
+    rc2, out2, _ = run_placement("--optimize", "--seed", "0")
+    m = parse_metrics(out1)
+    o = re.search(r"^optimized worst-voxel sensitivity: ([\d.]+) at \(([\d.]+), ([\d.]+)\)"
+                  r"  \(([\d.]+)x current\)$", out1, re.M)
+    nodes = re.findall(r"^node (\d+): \[([\d.]+), ([\d.]+)\]$", out1, re.M)
+    inside = all(0 <= float(x) <= ROOM_SIZE[0] and 0 <= float(y) <= ROOM_SIZE[1]
+                 for _, x, y in nodes)
+    ok = (rc1 == 0 and m is not None and o is not None and float(o.group(4)) >= 1.0
+          and float(o.group(1)) >= m["worst"] and len(nodes) == 5 and inside and out1 == out2)
+    return ok, (f"optimized {o.group(1)} vs current {m['worst']} ({o.group(4)}x), "
+                f"{len(nodes)} node lines inside the room, same seed -> identical output: "
+                f"{out1 == out2}" if (m and o) else
+                f"exit {rc1}, missing lines; stderr: {err1.strip()[:120]}")
+
+
+placement_check("placement-ur-s1-score-current", _ur_s1)
+placement_check("placement-ur-s2-better-layout", _ur_s2)
+
+
+# --- REQ-PLACE-001 lower evidence: layout_metrics.
+def _kernel_matches():                                  # C1: one geometry model
+    from wisent.placement import link_sensitivity, link_gradient
+    from wisent.observability import bistatic_sensitivity
+    from wisent.linkbvp import bistatic_gradient
+    pts = np.array([[1.0, 1.0], [6.2, 4.2], [4.0, 2.2], [9.4, 0.2], [0.2, 4.2]])
+    tx, rx = np.array(ROOM_NODES[0]), np.array(ROOM_NODES[3])
+    s_vec, s_ref = link_sensitivity(tx, rx, pts), np.array([bistatic_sensitivity(tx, rx, p) for p in pts])
+    g_vec, g_ref = link_gradient(tx, rx, pts), np.array([bistatic_gradient(tx, rx, p) for p in pts])
+    ok = np.allclose(s_vec, s_ref, rtol=1e-9, atol=1e-12) and np.allclose(g_vec, g_ref, rtol=1e-9, atol=1e-12)
+    return ok, (f"vectorised kernels equal bistatic_sensitivity / bistatic_gradient at {len(pts)} "
+                f"points (max |diff| {max(np.abs(s_vec - s_ref).max(), np.abs(g_vec - g_ref).max()):.1e})")
+
+
+def _metrics_reproduce():                               # C2: the 2026-07-30 hand numbers
+    from wisent.placement import layout_metrics
+    m = layout_metrics(ROOM_NODES, ROOM_SIZE)
+    ok = (abs(m["worst_voxel"] - 0.119) <= 0.005 and np.allclose(m["worst_xy"], (6.2, 4.2), atol=1e-6)
+          and abs(m["cond_median"] - 1.85) <= 0.02 and m["cond_frac_ok"] == 1.0)
+    return ok, (f"worst {m['worst_voxel']:.4f} at ({m['worst_xy'][0]:.1f}, {m['worst_xy'][1]:.1f}) "
+                f"[hand: 0.1168 at (6.2, 4.2)], cond median {m['cond_median']:.3f} [hand 1.85], "
+                f"{100 * m['cond_frac_ok']:.0f}% under cond 10 [hand 100%], grid {m['grid_shape']}")
+
+
+def _metrics_sensitive():                               # C2: the metric moves with the layout
+    from wisent.placement import layout_metrics
+    full = layout_metrics(ROOM_NODES, ROOM_SIZE)["worst_voxel"]
+    four = layout_metrics({k: v for k, v in ROOM_NODES.items() if k != 4}, ROOM_SIZE)["worst_voxel"]
+    return four < full, f"5 nodes {full:.4f} > without the centre node {four:.4f}"
+
+
+placement_check("placement-kernel-matches", _kernel_matches)
+placement_check("placement-metrics-reproduce", _metrics_reproduce)
+placement_check("placement-metrics-sensitive", _metrics_sensitive)
+check("placement-live-path-listed", any(p.name == "placement.py" for p in live),   # C3
+      "placement.py is enumerated by the sim-isolation check"
+      if any(p.name == "placement.py" for p in live)
+      else "placement.py is NOT in the sim-isolation live list")
+
 # ---------- summary ----------
 n_ok = sum(ok for _, ok in results)
 print(f"\n{n_ok}/{len(results)} checks passed")
