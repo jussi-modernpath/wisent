@@ -82,3 +82,72 @@ def layout_metrics(nodes, room, cell=0.4):
             "cond_median": float(np.median(cond)),
             "cond_frac_ok": float(np.mean(cond < 10.0)),
             "grid_shape": shape, "n_links": len(pairs)}
+
+
+def _clip(xy, room):
+    return (min(max(float(xy[0]), 0.0), float(room[0])), min(max(float(xy[1]), 0.0), float(room[1])))
+
+
+def optimize(room, n_nodes, fixed=None, current=None, n_candidates=400, seed=0, cell=0.4):
+    """Search for a layout with a higher worst-voxel sensitivity.
+
+    Node ids are `current`'s keys when a current layout is given (its length must be
+    n_nodes), else 0..n_nodes-1. `fixed` {id: (x, y)} nodes are kept exactly; every
+    other node is free. The current layout is scored first, as candidate 0, so the
+    result is never worse than what the operator already has; then n_candidates
+    layouts with free nodes uniform inside the room; then coordinate descent on the
+    free nodes from the best one, step cell -> cell/2 -> cell/4, moves clipped to the
+    room. One numpy Generator(seed) — same seed, same answer, on any machine.
+
+    Returns (best_nodes, best_metrics, evaluated) with evaluated a list of
+    (nodes, metrics) for every layout scored, in order.
+
+    The search knows nothing about walls, power or furniture: an all-free search puts
+    every node mid-room. `fixed` is how the operator states what cannot move.
+    """
+    room = (float(room[0]), float(room[1]))
+    fixed = {int(k): _clip(v, room) for k, v in (fixed or {}).items()}
+    if current is not None:
+        current = {int(k): (float(v[0]), float(v[1])) for k, v in current.items()}
+        if len(current) != n_nodes:
+            raise ValueError(f"current layout has {len(current)} nodes, n_nodes is {n_nodes}")
+        ids = sorted(current)
+    else:
+        ids = list(range(n_nodes))
+    unknown = sorted(set(fixed) - set(ids))
+    if unknown:
+        raise ValueError(f"fixed names node(s) {unknown} not in the layout")
+    free = [i for i in ids if i not in fixed]
+    rng = np.random.default_rng(seed)
+    evaluated = []
+
+    def score(layout):
+        m = layout_metrics(layout, room, cell)
+        evaluated.append((dict(layout), m))
+        return m
+
+    best = None
+    if current is not None:
+        best = (current, score(current))
+    for _ in range(n_candidates):
+        layout = dict(fixed)
+        for i in free:
+            layout[i] = (float(rng.uniform(0.0, room[0])), float(rng.uniform(0.0, room[1])))
+        m = score(layout)
+        if best is None or m["worst_voxel"] > best[1]["worst_voxel"]:
+            best = (layout, m)
+
+    layout, m = dict(best[0]), best[1]
+    step = cell
+    while step >= cell / 4:
+        improved = False
+        for i in free:
+            for dx, dy in ((step, 0.0), (-step, 0.0), (0.0, step), (0.0, -step)):
+                trial = dict(layout)
+                trial[i] = _clip((layout[i][0] + dx, layout[i][1] + dy), room)
+                mt = score(trial)
+                if mt["worst_voxel"] > m["worst_voxel"]:
+                    layout, m, improved = trial, mt, True
+        if not improved:
+            step /= 2
+    return layout, m, evaluated
