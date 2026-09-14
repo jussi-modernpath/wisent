@@ -461,6 +461,63 @@ def _optimize_hand():                                   # C2: node 4 free, seede
 placement_check("placement-optimize-beats-candidates", _optimize_beats)
 placement_check("placement-optimize-matches-hand-placement", _optimize_hand)
 
+# --- REQ-PLACE-003 lower evidence: the operator script, via subprocess.
+def _script_metrics():                                  # C1: the four contract lines
+    rc, out, err = run_placement("--room", str(ROOM_FILE))
+    m = parse_metrics(out)
+    ok = rc == 0 and m is not None and m["n"] == 5 and err == ""
+    return ok, (f"exit {rc}; nodes {m['n']}, worst {m['worst']} at {m['xy']}, cond {m['cond']}, "
+                f"{m['pct']}%" if m else f"exit {rc}, contract lines missing; stderr: {err.strip()[:100]}")
+
+
+def _script_optimize():                                 # C2: --optimize --fix
+    rc, out, err = run_placement("--optimize", "--seed", "0", "--fix", "0,1,2,3",
+                                 "--room", str(ROOM_FILE))
+    m = parse_metrics(out)
+    o = re.search(r"^optimized worst-voxel sensitivity: ([\d.]+) at \(([\d.]+), ([\d.]+)\)"
+                  r"  \(([\d.]+)x current\)$", out, re.M)
+    nodes = {int(i): (float(x), float(y))
+             for i, x, y in re.findall(r"^node (\d+): \[([\d.]+), ([\d.]+)\]$", out, re.M)}
+    held = all(nodes.get(k) == ROOM_NODES[k] for k in (0, 1, 2, 3))
+    ok = (rc == 0 and m is not None and o is not None and float(o.group(4)) >= 1.0
+          and len(nodes) == 5 and held)
+    return ok, (f"exit {rc}; optimized {o.group(1)} ({o.group(4)}x current), {len(nodes)} node lines, "
+                f"nodes 0-3 unchanged: {held}, node 4 -> {nodes.get(4)}" if (m and o)
+                else f"exit {rc}, lines missing; stderr: {err.strip()[:100]}")
+
+
+def _script_refuses():                                  # C3: four refusals, one line each
+    import tempfile
+    src = ROOM_FILE.read_text()
+    cases = {
+        "no size_m": (re.sub(r"^\s*size_m:.*$", "", src, flags=re.M), "has no size_m"),
+        "node 4 without xy_m": (re.sub(r"^(\s*xy_m: \[4, 2\.2\].*)$", "", src, flags=re.M),
+                                "has no xy_m for node(s) 4"),
+        "no node block": (re.sub(r"^\s*node_id:.*$", "", src, flags=re.M), "has no nodes"),
+    }
+    results = []
+    with tempfile.TemporaryDirectory() as d:
+        for name, (text, expect) in cases.items():
+            f = pathlib.Path(d) / (name.replace(" ", "_") + ".yaml")
+            f.write_text(text)
+            rc, out, err = run_placement("--room", str(f))
+            lines = err.strip().splitlines()
+            good = (rc == 2 and out == "" and len(lines) == 1 and expect in lines[0]
+                    and lines[0].startswith("placement: ") and "Traceback" not in err)
+            results.append((name, good, rc, lines[-1][:80] if lines else "<no stderr>"))
+        rc, out, err = run_placement("--room", str(pathlib.Path(d) / "does-not-exist.yaml"))
+        lines = err.strip().splitlines()
+        good = (rc == 2 and out == "" and len(lines) == 1 and "not found" in lines[0]
+                and lines[0].startswith("placement: ") and "Traceback" not in err)
+        results.append(("missing file", good, rc, lines[-1][:80] if lines else "<no stderr>"))
+    ok = all(g for _, g, _, _ in results)
+    return ok, "; ".join(f"{n}: exit {rc} '{line}'" for n, _, rc, line in results)
+
+
+placement_check("placement-script-prints-metrics", _script_metrics)
+placement_check("placement-script-optimize", _script_optimize)
+placement_check("placement-script-refuses-missing", _script_refuses)
+
 # ---------- summary ----------
 n_ok = sum(ok for _, ok in results)
 print(f"\n{n_ok}/{len(results)} checks passed")
