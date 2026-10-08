@@ -222,3 +222,5 @@ that died with their evidence.
 
 MIT — see `LICENSE`. Do whatever you like with it; if you audit an AP's beacon rate or
 reproduce the scale-toggle finding on other silicon, a PR with the row would be welcome.
+
+Rehearsal note.
