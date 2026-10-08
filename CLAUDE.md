@@ -1,5 +1,16 @@
 # CLAUDE.md — project context for Claude Code
 
+<!-- BEGIN modernpath-rdd (managed — do not edit; changes are overwritten) -->
+The shared process is installed by the `modernpath` CLI. These files are a
+versioned snapshot of the canonical `req-driven-dev` source repository.
+
+@.modernpath/rdd/AGENTS.md
+
+@.modernpath/rdd/PROCESS.md
+
+@AGENTS.md
+<!-- END modernpath-rdd -->
+
 ## What this project is
 
 wisent: WiFi human-sensing on 5 bare single-antenna ESP32s (Arduino toolchain) + a Python host.

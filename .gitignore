@@ -8,3 +8,9 @@ __pycache__/
 *.pyc
 .DS_Store
 host/*.npz
+
+# ModernPath CLI local data (process package is versioned)
+/.modernpath/*
+!/.modernpath/rdd/
+!/.modernpath/rdd/**
+!/.modernpath/cli-reference.md
