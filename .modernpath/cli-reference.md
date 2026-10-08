@@ -27,7 +27,9 @@ to explore your documentation, and 'work' commands to manage epics and tasks.
 - [`modernpath auth status`](#modernpath-auth-status) — Show whether you are signed in, as which workspace, against which server
 - [`modernpath author`](#modernpath-author) — Create or advance a process record on the store, legality server-enforced
 - [`modernpath author advance`](#modernpath-author-advance) — Advance a requirement or epic under server-enforced transition legality
+- [`modernpath author apply`](#modernpath-author-apply) — Record an epic, its requirements, relations and membership from one file
 - [`modernpath author backlog`](#modernpath-author-backlog) — Record a backlog, gap or tooling discovery as one store record (born OPEN)
+- [`modernpath author demote`](#modernpath-author-demote) — Reopen delivered items on one attributable demotion gate: --to PROPOSED|IN_PROGRESS|OBSOLETE --basis reversed-decision|defect|superseded --reason USER:…; --apply after the answer
 - [`modernpath author epic`](#modernpath-author-epic) — Create an epic in its entry state
 - [`modernpath author gate`](#modernpath-author-gate) — Open a decision gate (born open; answers arrive through the answer machinery)
 - [`modernpath author gate-withdraw`](#modernpath-author-gate-withdraw) — Withdraw a mistakenly-opened standalone human gate (dismiss it; a reason is required)
@@ -59,6 +61,8 @@ to explore your documentation, and 'work' commands to manage epics and tasks.
 - [`modernpath env`](#modernpath-env) — Manage ModernPath environment settings
 - [`modernpath env list`](#modernpath-env-list) — List available environments
 - [`modernpath env test`](#modernpath-env-test) — Test connection to current environment
+- [`modernpath epics`](#modernpath-epics) — Find epics
+- [`modernpath epics search`](#modernpath-epics-search) — Find epics by name or meaning
 - [`modernpath factory`](#modernpath-factory) — Mission Control: sync the workspace, answer gates, track the loop
 - [`modernpath factory answer`](#modernpath-factory-answer) — Record a USER: decision on a gate (first-wins on the server)
 - [`modernpath factory connect`](#modernpath-factory-connect) — Bind this workspace to a System (writes .modernpath/config.json)
@@ -75,14 +79,14 @@ to explore your documentation, and 'work' commands to manage epics and tasks.
 - [`modernpath factory pull`](#modernpath-factory-pull) — Server-born answers -> workspace records; --apply records + acks (tracked job)
 - [`modernpath factory reconcile`](#modernpath-factory-reconcile) — Compare what this workspace builds against what the server serves
 - [`modernpath factory release`](#modernpath-factory-release) — Select the current release that factory sync stamps and scopes to
-- [`modernpath factory release activate`](#modernpath-factory-release-activate) — Activate a delivery release tenant-wide (attributed; distinct from the local `use` stamp)
+- [`modernpath factory release activate`](#modernpath-factory-release-activate) — Activate a delivery release on the bound system (distinct from the local `use` stamp)
 - [`modernpath factory release clear`](#modernpath-factory-release-clear) — Unset the current release (sync runs unscoped; existing stamps stay)
 - [`modernpath factory release show`](#modernpath-factory-release-show) — Print the current release
 - [`modernpath factory release use`](#modernpath-factory-release-use) — Set current_release in .modernpath/config.json (e.g. modernpath-v1-09)
-- [`modernpath factory status`](#modernpath-factory-status) — Show the local binding and pending op count
+- [`modernpath factory status`](#modernpath-factory-status) — Show the local sync stamp, server active release, and pending op count
 - [`modernpath factory sync`](#modernpath-factory-sync) — Push the workspace state: typed op batch + projections + heartbeat
 - [`modernpath factory watch`](#modernpath-factory-watch) — The daemon: sync + heartbeat + pull --apply on a cadence; SIGINT closes the session
-- [`modernpath feedback`](#modernpath-feedback) — File a tooling gap as a BACKLOG-TOOL record in your store (the sanctioned channel)
+- [`modernpath feedback`](#modernpath-feedback) — File a tooling gap only in the ModernPath workspace
 - [`modernpath focus`](#modernpath-focus) — Declare what you're working on right now (visibility only — no assignment, no lock)
 - [`modernpath github`](#modernpath-github) — Connect your GitHub organization to ModernPath
 - [`modernpath hooks`](#modernpath-hooks) — Manage IDE hooks for ModernPath integration
@@ -102,6 +106,8 @@ to explore your documentation, and 'work' commands to manage epics and tasks.
 - [`modernpath new`](#modernpath-new) — Create a new project with AI-generated system
 - [`modernpath process`](#modernpath-process) — Navigate the delivery loop: phase checks (server-computed), rendered locally
 - [`modernpath process advance`](#modernpath-process-advance) — Record the SR's lower trace from its recorded evidence and reconcile it to IN_REVIEW
+- [`modernpath process backlog`](#modernpath-process-backlog) — Backlog, gap and tooling records
+- [`modernpath process backlog list`](#modernpath-process-backlog-list) — List backlog, gap and tooling records, newest first
 - [`modernpath process cascade-mode`](#modernpath-process-cascade-mode) — Read the system's cascade mode, or set it (report|enforce, requires a USER: source)
 - [`modernpath process check`](#modernpath-process-check) — Render one phase's decision-table checks for the current selection (a pure read)
 - [`modernpath process complete`](#modernpath-process-complete) — At the delivered revision: record the run, the completion trace at the packet aggregate, and the completion gate naming it — in one call
@@ -110,14 +116,52 @@ to explore your documentation, and 'work' commands to manage epics and tasks.
 - [`modernpath process findings add`](#modernpath-process-findings-add) — Record a finding on a scope (carries the directory's review-context id)
 - [`modernpath process findings disposition`](#modernpath-process-findings-disposition) — Change a finding's disposition (OPEN/RESOLVED/DEFERRED/REJECTED)
 - [`modernpath process findings list`](#modernpath-process-findings-list) — List findings for a scope (or all)
+- [`modernpath process lane`](#modernpath-process-lane) — The small-change lane: authorize, review, enter, check and complete small changes
+- [`modernpath process lane approve`](#modernpath-process-lane-approve) — Answer a lane authorization as the signed-in workspace admin (one call)
+- [`modernpath process lane authorize`](#modernpath-process-lane-authorize) — Prepare a lane authorization for this System; a workspace admin answers it in the web app or with process lane approve
+- [`modernpath process lane check`](#modernpath-process-lane-check) — Post the small change's delivered file list; the server records the eligibility verdict
+- [`modernpath process lane complete`](#modernpath-process-lane-complete) — Open one lane-batch gate over the eligible small changes, or apply an answered one
+- [`modernpath process lane enter`](#modernpath-process-lane-enter) — Enter a small change by the current lane authorization (PROPOSED->TODO) in one call
+- [`modernpath process lane review`](#modernpath-process-lane-review) — Record the small change's narrow independent review in one call
 - [`modernpath process next`](#modernpath-process-next) — Show where the delivery loop stands and the skill to run (a pure read)
+- [`modernpath process prepare-inputs`](#modernpath-process-prepare-inputs) — Show current delivery context and document timestamps
+- [`modernpath process reapply-entry`](#modernpath-process-reapply-entry) — Re-pin an applied entry gate to the current packet aggregate (requires a USER: attestation)
 - [`modernpath process reconcile`](#modernpath-process-reconcile) — Apply the legal automatic lifecycle transitions from current trace proofs (--apply to write)
-- [`modernpath process supersede`](#modernpath-process-supersede) — Supersede a traced item, computing the invalidation cascade (report-only unless the system is in enforce mode)
+- [`modernpath process reenter`](#modernpath-process-reenter) — Re-establish a stranded entry gate after a reversed-decision reopen (fresh cold review + human approval)
+- [`modernpath process review`](#modernpath-process-review) — Record a delegated cold review
+- [`modernpath process review record`](#modernpath-process-review-record) — Record a whole cold review — findings, dispositions and the trace — in one call
+- [`modernpath process supersede`](#modernpath-process-supersede) — Supersede a traced item, computing the invalidation cascade (a dry run unless --apply)
 - [`modernpath read-doc`](#modernpath-read-doc) — Read system documentation via API
 - [`modernpath read-file`](#modernpath-read-file) — Read source code file content via API
+- [`modernpath requirements`](#modernpath-requirements) — Find synced requirements
+- [`modernpath requirements list`](#modernpath-requirements-list) — List one page of compact requirement summaries
+- [`modernpath requirements search`](#modernpath-requirements-search) — Find requirements and test cases by name or meaning
 - [`modernpath requirements-corpus`](#modernpath-requirements-corpus) — Emit the store's requirement corpus (SR+UR) for the process gates
+- [`modernpath reverse-engineer`](#modernpath-reverse-engineer) — Establish an authorized as-built baseline or review-only DERIVED proposals
+- [`modernpath reverse-engineer acceptance-apply`](#modernpath-reverse-engineer-acceptance-apply) — Atomically apply an approved exact as-built packet and retain its receipt
+- [`modernpath reverse-engineer acceptance-open`](#modernpath-reverse-engineer-acceptance-open) — Open the single human decision for an eligible exact as-built proof packet
+- [`modernpath reverse-engineer acceptance-status`](#modernpath-reverse-engineer-acceptance-status) — Read the recorded versus applied answer, current proof and durable receipt
+- [`modernpath reverse-engineer authorize`](#modernpath-reverse-engineer-authorize) — Record the explicit source-scoped baseline or derived authorization
+- [`modernpath reverse-engineer candidates`](#modernpath-reverse-engineer-candidates) — Read typed candidate requirements and proposed links
+- [`modernpath reverse-engineer capture-source`](#modernpath-reverse-engineer-capture-source) — Capture exactly the authorized repository files; refuse changed bytes or symlinks
+- [`modernpath reverse-engineer coverage`](#modernpath-reverse-engineer-coverage) — Measure authorized inventory against current governed and candidate traces
+- [`modernpath reverse-engineer decide`](#modernpath-reverse-engineer-decide) — Apply the exact reviewed selection, fingerprint, USER source and retry key
+- [`modernpath reverse-engineer delivery-proof`](#modernpath-reverse-engineer-delivery-proof) — Fetch and retain a clean tested snapshot at the remote default-branch tip
+- [`modernpath reverse-engineer execution-proof`](#modernpath-reverse-engineer-execution-proof) — Retain genuine named execution and per-clause assertion proof; does not execute tests
+- [`modernpath reverse-engineer inventory`](#modernpath-reverse-engineer-inventory) — Inventory explicitly declared repositories, including non-Git roots and legacy source formats
+- [`modernpath reverse-engineer preflight`](#modernpath-reverse-engineer-preflight) — Read current system scope, corpus fingerprint and recommended mode (read-only)
+- [`modernpath reverse-engineer preview`](#modernpath-reverse-engineer-preview) — Preview an exact typed candidate set without applying it
+- [`modernpath reverse-engineer proof-preview`](#modernpath-reverse-engineer-proof-preview) — Preview exact existing assertion, execution and integration proof without lifecycle writes
+- [`modernpath reverse-engineer publish`](#modernpath-reverse-engineer-publish) — Atomically publish one coherent requirement group under its run
+- [`modernpath reverse-engineer read-document`](#modernpath-reverse-engineer-read-document) — Read the exact authorized SystemDoc snapshot, never the live document
+- [`modernpath reverse-engineer read-source`](#modernpath-reverse-engineer-read-source) — Read the exact captured source, base64 encoded; never falls back to latest
+- [`modernpath reverse-engineer refresh-traces`](#modernpath-reverse-engineer-refresh-traces) — Refresh confirmed captured code/test links on existing pending baselines; preserve requirement content
+- [`modernpath reverse-engineer source-status`](#modernpath-reverse-engineer-source-status) — Read source capture status and immutable file identities
+- [`modernpath reverse-engineer status`](#modernpath-reverse-engineer-status) — Read a durable run and its group receipts
 - [`modernpath scan`](#modernpath-scan) — Architecture analysis with selectable agents
 - [`modernpath search`](#modernpath-search) — Search documentation and code files
+- [`modernpath source`](#modernpath-source) — The bound system's uploaded source
+- [`modernpath source push`](#modernpath-source-push) — Push the working directory to the bound system's upload repository
 - [`modernpath status`](#modernpath-status) — Show current ModernPath status
 - [`modernpath system-docs`](#modernpath-system-docs) — Manage system documents (requirements, architecture docs, etc.)
 - [`modernpath system-docs list`](#modernpath-system-docs-list) — List system documents
@@ -139,7 +183,7 @@ to explore your documentation, and 'work' commands to manage epics and tasks.
 - [`modernpath work status`](#modernpath-work-status) — Show epic status (specs, tasks, progress)
 - [`modernpath work subtasks`](#modernpath-work-subtasks) — List subtasks for a task
 - [`modernpath working-set`](#modernpath-working-set) — Pull server state into .modernpath/working-set as uncommitted shape files
-- [`modernpath working-set check`](#modernpath-working-set-check) — Report stale working-set files; --refresh re-pulls them
+- [`modernpath working-set check`](#modernpath-working-set-check) — Check snapshot source and local body integrity; --refresh updates safely
 - [`modernpath working-set pull`](#modernpath-working-set-pull) — Materialize named items, or the current selection's scope with --scope
 - [`modernpath working-set push`](#modernpath-working-set-push) — Push the current scope directory: item files as atomic patches, packet sections whole
 - [`modernpath working-set select`](#modernpath-working-set-select) — Record, advance, suspend, or resume the store-held work selection
@@ -151,8 +195,13 @@ Ask a question about the codebase using AI
 
 Ask a natural language question about your codebase.
 
-Uses the ModernPath platform's agentic search to find relevant documentation
-and code, then synthesizes an answer.
+Uses the ModernPath platform's agentic search to find relevant documentation,
+code, and the curated patterns and capabilities the system uses, then
+synthesizes an answer. Each source names its kind and id.
+
+A question that takes the server longer than 45 seconds keeps running there:
+ask waits for the answer, showing "Still working (m:ss)…" on stderr in pretty
+format, for up to 10 minutes.
 
 Output formats:
   --format=pretty   Colored terminal output (default)
@@ -289,7 +338,7 @@ current identity, or --decision USER:… for DEFERRED. The expected state
 makes concurrent advances conflict instead of overwrite.
 
 ```
-modernpath author
+modernpath author [flags]
 ```
 
 ## `modernpath author advance`
@@ -304,18 +353,34 @@ A human-gated transition names the exact ANSWERED gate (--gate), echoes the
 answer it rides (--gate-answer: the option key, its label, or the stored
 answer text) and pins to the gate's current content-shadow hash
 (--gate-fingerprint) — the Fingerprint: line of working-set pull <gate-id>,
-also served by factory gates <gate-id> --json as content_fingerprint. A stale
-hash conflicts instead of applying.
+also served by factory gates <gate-id> --json as fingerprint: the content
+shadow's hash, falling back to the gate row's own when no shadow exists.
+That read also carries content_fingerprint, the row's column — do not pass
+that one. A stale hash conflicts instead of applying.
+
+With --gate the verb reads the gate itself: an omitted --gate-fingerprint is
+the gate's fingerprint, an omitted --to and --expected are the TO and FROM
+states of the gate's transition, and an omitted --gate-answer is approve when
+the gate's chosen options are exactly approve (any other answer must be
+echoed). --kind is read from the record. Explicit flags always win. A gate
+that carries no transition is refused unless --to and --expected are given.
 
 Members before the epic: apply each member the gate names, then the epic;
 the gate closes and reads applied once every named scope has its
 application. The server does not enforce that order — the recipe does, so
-an epic advanced first leaves its members to remember. DEFERRED needs
---decision USER:<date>:<why> instead of a gate. --expected is the record's current status, so two concurrent advances
-conflict rather than overwrite.
+an epic advanced first leaves its members to remember. --gate <GATE> with no
+id does it in one call: every record the gate's exact scope names that is
+still in the FROM state, members first, then the epic when the gate names
+it; it prints each result, skips a record already past, and stops before the
+epic when a member is refused.
+
+DEFERRED needs --decision USER:<date>:<why> instead of a gate. --expected is
+the state the transition starts from (the gate's FROM state, never a fresh
+read of the record), so two concurrent advances conflict rather than
+overwrite.
 
 ```
-modernpath author advance <external-id> [flags]
+modernpath author advance [<external-id>] [flags]
 ```
 
 | Flag | Type | Default | Meaning |
@@ -327,6 +392,46 @@ modernpath author advance <external-id> [flags]
 | `--gate-fingerprint` | string |  | the gate's current content-shadow hash |
 | `--kind` | string | requirement | requirement \| epic |
 | `--to` | string |  | target status (required) |
+
+## `modernpath author apply`
+
+Record an epic, its requirements, relations and membership from one file
+
+Record a whole plan in one call. The file is YAML or JSON:
+
+  epic: {id, title, description, expected_fingerprint}
+  requirements:
+    - {id, kind: ur|sr, context, title, description, rationale, boundary,
+       verification_method, criteria: [...], parents: [UR ids],
+       lane_class, sources: [USER:… source tags], expected_fingerprint}
+  members: [requirement ids]
+
+The plan goes through the same write engine as working-set push. Every
+record is checked before the first write; one invalid record stops the whole
+call and nothing is written. A record the store does not know is created,
+then patched. Each record's changes — the fields that differ (an empty field
+in the file is left alone), its criteria, relations and membership — go in
+one atomic patch that carries the authoring context.
+
+A record that already exists is guarded by the version the plan was written
+against: its expected_fingerprint in the plan, or else the fingerprint of its
+working-set pull (.modernpath/working-set/<id>.md or a scope pull's member
+file). A record that would change and has neither is refused; so is one whose
+fingerprint moved since — pull it again and keep the other change in the plan.
+A record the plan would not change needs neither.
+
+Each record's line shows its result and fingerprint; an updated record's line
+shows <replaced> -> <new>. Running the same file again writes nothing and
+says each record is unchanged. --dry-run prints the plan and writes nothing.
+
+```
+modernpath author apply --file <plan.yaml|json> [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--dry-run` | bool |  | print the plan and write nothing |
+| `--file` | string |  | the plan file, YAML or JSON (required) |
 
 ## `modernpath author backlog`
 
@@ -362,6 +467,70 @@ modernpath author backlog <external-id> [flags]
 | `--observed` | string |  | what was seen, not what it implies |
 | `--title` | string |  | the discovery in one line (required) |
 | `--why-unrouted` | string |  | unclear owner, cross-cutting, or awaiting a decision |
+
+## `modernpath author demote`
+
+Reopen delivered items on one attributable demotion gate: --to PROPOSED|IN_PROGRESS|OBSOLETE --basis reversed-decision|defect|superseded --reason USER:…; --apply after the answer
+
+Send delivered work back with one attributable decision (PROCESS.md
+§Attributable demotions). Each item must be IN_REVIEW or DONE; its owning
+epic and the user requirement that requires it follow on the same gate, and
+the siblings the decision did not touch keep their evidence.
+
+Open (no --apply): name one item, or several with --ids A,B,C or --file
+(one id per line). It refuses locally — before any request — without a
+--reason that is a USER: source (USER:<date>:<why>), when the basis does not
+match the destination (reversed-decision -> PROPOSED, defect -> IN_PROGRESS,
+superseded -> OBSOLETE, which also needs --superseded-by <id>); then reads
+each item's current status from the store as the FROM and refuses, before
+any write, an item that is not IN_REVIEW or DONE, and a batch whose items are
+not all in one state (it names both groups: run the group holding user
+requirements first). Then it posts one gate (purpose demotion,
+approval_request, transition <from>-><to>, every item as its exact scope,
+approve/decline options, a brief in plain words listing every item and the
+user requirements and epics that follow, the reason and the basis as
+sources). The gate id is DEMOTE-<first id>, or the next free id in its
+DEMOTE-<first id>-R<n> series when the earlier gates are closed or withdrawn;
+an open or answered gate in the series is refused and named. --gate-id names
+the id yourself. A demotion gate names no prerequisite trace and needs none:
+it is an attributable decision, not a fingerprint check. --kind epic demotes
+epics.
+
+Apply (--apply): after the human answers approve (Mission Control, or
+factory answer <gate> --options approve --text "USER:<date>: …"), reads the
+answered gate and advances every item it names — user requirements first,
+then the rest — re-reading the gate before each item; the gate id, its
+current fingerprint and the answer are read from the store, never typed.
+--gate-id <gate> --apply takes no id; <id> --apply without --gate-id applies
+the newest gate in the DEMOTE-<id> series. An item with its own applied entry
+on the gate is skipped. An item a follow on another gate already moved out
+of the starting state is reported with that gate and passed over; the gate
+cannot then close, and the output names author gate-withdraw. Any other
+refusal stops the run, lists what was applied and what remains, and exits
+non-zero; a re-run resumes. It prints the server's transition basis, the
+dependents that followed and the next step: for PROPOSED, re-plan and
+cold-review, then process enter opens the successor entry gate; for
+IN_PROGRESS, rebuild red-first (rdd-build) and process complete re-completes
+the epic; for OBSOLETE, the epic's completion excludes the item.
+
+A delegated agent is denied this verb by the subagent guard; the permission
+placement is ask, beside process supersede and process reenter.
+
+```
+modernpath author demote [<external-id>] [--ids A,B,C | --file <ids.txt>] [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--apply` | bool |  | apply the answered demotion gate: advance every item on it and report what followed |
+| `--basis` | string |  | the basis: reversed-decision \| defect \| superseded |
+| `--file` | string |  | a file naming the items for one gate, one id per line |
+| `--gate-id` | string |  | the gate id to open or apply (default: the next free id in the DEMOTE-<first id> series; with --apply, the newest) |
+| `--ids` | string |  | several items for one gate, comma-separated (all IN_REVIEW or all DONE) |
+| `--kind` | string | requirement | requirement \| epic |
+| `--reason` | string |  | the human's reason as a USER: source (USER:<date>:<why>) |
+| `--superseded-by` | string |  | the record that supersedes the item (required with --basis superseded) |
+| `--to` | string |  | the destination: PROPOSED (reversed-decision), IN_PROGRESS (defect) or OBSOLETE (superseded) |
 
 ## `modernpath author epic`
 
@@ -566,14 +735,14 @@ modernpath author trace <external-id> [flags]
 |---|---|---|---|
 | `--application-revision` | string |  | repository revision (default: HEAD) |
 | `--body` | string |  | trace verdict details markdown |
-| `--fingerprint` | string |  | the pin evaluated: the packet aggregate (cold-review, entry, completion) or the content hash (lower); read from the store when omitted |
-| `--from` | string |  | the transition's FROM state (with --to); inferred by purpose: cold-review plan, entry PROPOSED, lower build, completion IN_REVIEW |
+| `--fingerprint` | string |  | the pin evaluated: the packet aggregate (cold-review, entry, completion) or the content hash (lower, upper); read from the store when omitted |
+| `--from` | string |  | the transition's FROM state (with --to); inferred by purpose: cold-review plan, entry PROPOSED, lower build, upper build, completion IN_REVIEW |
 | `--prerequisite` | stringArray |  | prerequisite trace gate id, repeatable |
 | `--purpose` | string |  | trace purpose, e.g. cold-review |
 | `--scope` | stringArray |  | exact EPIC/UR/SR scope token, repeatable |
 | `--source` | stringArray |  | verdict source reference, repeatable |
 | `--title` | string |  | record title (required) |
-| `--to` | string |  | the transition's TO state (with --from); inferred by purpose: cold-review entry, entry TODO, lower verify, completion DONE |
+| `--to` | string |  | the transition's TO state (with --from); inferred by purpose: cold-review entry, entry TODO, lower verify, upper verify, completion DONE |
 | `--transition` | string |  | transition held by the trace as one FROM->TO value (quote the arrow); prefer --from/--to |
 | `--verdict` | string |  | PASS \| FAIL \| STALE |
 
@@ -591,20 +760,61 @@ as a 422 naming the field and the limit, and nothing is written. Prose
 belongs in --detail, which is unbounded; --description, --boundary,
 --rationale and --verification-method take a paragraph.
 
+--citations-file replaces the source citation set with typed JSON objects.
+It preserves captured-source identities and code/test kinds. It is mutually
+exclusive with --source; omitting both preserves the existing citations.
+The file must contain a JSON array; an empty array clears the stored set.
+Legacy process_source citations may use source_tag or id as their identity.
+
+--criteria is a JSON array — inline when the value starts with '[',
+otherwise a path to a file holding the same array. It replaces the stored
+set whole, keyed on external_id: omitting --criteria preserves the stored
+set, and a criteria value that is present but not an array is refused
+rather than silently ignored. Every object needs an external_id (one
+without it is refused as a 422) and may carry position, kind (criterion,
+or scenario for a user requirement's acceptance scenario), given, when,
+then, statement, source_citations and verification_refs.
+
+Set position on every object or on none. With none, the array order is the
+stored order; a set that states position on some objects and not on others
+is refused as a 422. A set is served by position, then external_id. To
+reorder a set, send it again in the new order: a set identical to the stored
+one writes nothing.
+
+  --criteria '[{"external_id":"AC-1","position":1,"kind":"criterion","statement":"the export names the workspace"}]'
+  --criteria '[{"external_id":"AS-1","kind":"scenario","given":"a stale fingerprint","when":"the edit is sent","then":"it conflicts"}]'
+
+--kind backlog edits a backlog, gap or tooling record: its disposition (with
+the --source that decided it) and its body — --notes, --observed,
+--why-unrouted, --candidate-route, --affected, and --gap-kind/--consequence/
+--affected-trace on a gap. A backlog record has no requirement fields:
+--detail, --description, --stage, --priority, --owner, --boundary,
+--rationale, --verification-method, --context and --criteria are refused
+there, and prose goes in --notes.
+
 ```
 modernpath author update <external-id> [flags]
 ```
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
+| `--affected` | string |  | backlog only: affected EPIC/UR/SR ids, comma-separated (replaces the stored list) |
+| `--affected-trace` | string |  | backlog only, gap: ids whose trace is incomplete because of it, comma-separated (replaces the stored list) |
 | `--boundary` | string |  | new change boundary (system requirement) |
+| `--candidate-route` | string |  | backlog only: PROPOSED UR/SR, DERIVED, gap, conflict, or decision gate |
+| `--citations-file` | string |  | JSON file of typed source citations; replaces the stored set, preserving immutable source identities |
+| `--consequence` | string |  | backlog only, gap: what the affected traces cannot currently prove |
 | `--context` | string |  | new bounded-context code |
-| `--criteria` | string |  | JSON array of criterion/scenario objects — inline when it starts with '[', otherwise a file path |
+| `--criteria` | string |  | JSON array of criterion/scenario objects — inline when it starts with '[', otherwise a file path. Each object needs external_id (the replace-set keys on it) and takes position (on every object or on none; none keeps the array order), kind (criterion \| scenario), given, when, then, statement, source_citations, verification_refs |
 | `--description` | string |  | new description |
 | `--detail` | string |  | new detail markdown (record detail_md) |
-| `--disposition` | string |  | backlog only: OPEN, ROUTED to <id>, REJECTED with <source>, CLOSED by <id>, ACCEPTED with <source> — needs --source |
+| `--disposition` | string |  | backlog only: OPEN, DEFERRED, ROUTED to <id>, REJECTED with <source>, CLOSED by <id>, ACCEPTED with <source> — needs --source |
 | `--expected-fingerprint` | string |  | the record's current content fingerprint (required; a stale one conflicts instead of overwriting) |
+| `--gap-kind` | string |  | backlog only, gap: capability \| specification |
 | `--kind` | string | requirement | requirement (default), epic — an epic's title/description are edited too — or backlog |
+| `--lane-class` | string |  | the small-change lane class, set before the narrow review: defect_with_failing_test, wording, presentation or dependency_patch (system requirement) |
+| `--notes` | string |  | backlog only: new free notes (markdown) |
+| `--observed` | string |  | backlog only: new observation — what was seen, not what it implies |
 | `--owner` | string |  | new owner |
 | `--priority` | string |  | new priority |
 | `--rationale` | string |  | new rationale (system requirement) |
@@ -612,6 +822,7 @@ modernpath author update <external-id> [flags]
 | `--stage` | string |  | new stage |
 | `--title` | string |  | new title |
 | `--verification-method` | string |  | new verification method (system requirement) |
+| `--why-unrouted` | string |  | backlog only: unclear owner, cross-cutting, or awaiting a decision |
 
 ## `modernpath check`
 
@@ -713,7 +924,7 @@ Data model operations
 Commands for working with data model exports.
 
 ```
-modernpath datamodel
+modernpath datamodel [flags]
 ```
 
 ## `modernpath datamodel export`
@@ -758,7 +969,7 @@ Examples:
   modernpath dev ralph abc123-uuid --tool opencode
 
 ```
-modernpath dev
+modernpath dev [flags]
 ```
 
 ## `modernpath dev list`
@@ -766,7 +977,7 @@ modernpath dev
 List supported AI coding agents
 
 ```
-modernpath dev list
+modernpath dev list [flags]
 ```
 
 ## `modernpath dev ralph`
@@ -810,7 +1021,7 @@ modernpath dev ralph [task_id] [flags]
 Show current Ralph loop status
 
 ```
-modernpath dev ralph status
+modernpath dev ralph status [flags]
 ```
 
 ## `modernpath dev run`
@@ -843,7 +1054,7 @@ access to your project's architecture, specs, search, and context building.
 Supported tools: opencode, cursor, claude, codex
 
 ```
-modernpath dev setup [tool]
+modernpath dev setup [tool] [flags]
 ```
 
 ## `modernpath dev task`
@@ -877,7 +1088,7 @@ Manage codebase documentation and analysis
 Generate and sync codebase documentation from AI analysis.
 
 ```
-modernpath docs
+modernpath docs [flags]
 ```
 
 ## `modernpath docs cleanup`
@@ -918,7 +1129,7 @@ This performs the same analysis as the UI when creating new systems:
 5. Runs full AI analysis pipeline including documentation generation
 
 ```
-modernpath docs generate
+modernpath docs generate [flags]
 ```
 
 ## `modernpath docs preview`
@@ -928,7 +1139,7 @@ Preview what would be updated by docs refresh
 Show what files have changed and what documentation would be regenerated without making changes.
 
 ```
-modernpath docs preview
+modernpath docs preview [flags]
 ```
 
 ## `modernpath docs push`
@@ -954,7 +1165,7 @@ Example workflow:
 3. modernpath docs push           # Upload changes
 
 ```
-modernpath docs push
+modernpath docs push [flags]
 ```
 
 ## `modernpath docs refresh`
@@ -973,7 +1184,7 @@ This is much faster than a full regeneration:
 Use this for daily documentation updates to keep docs in sync with code.
 
 ```
-modernpath docs refresh
+modernpath docs refresh [flags]
 ```
 
 ## `modernpath docs repair`
@@ -1015,7 +1226,7 @@ Note: Specifications are synced automatically when selecting an Epic
 via 'modernpath work select'.
 
 ```
-modernpath docs sync
+modernpath docs sync [flags]
 ```
 
 ## `modernpath env`
@@ -1057,7 +1268,7 @@ modernpath env [flags]
 List available environments
 
 ```
-modernpath env list
+modernpath env list [flags]
 ```
 
 ## `modernpath env test`
@@ -1065,8 +1276,36 @@ modernpath env list
 Test connection to current environment
 
 ```
-modernpath env test
+modernpath env test [flags]
 ```
+
+## `modernpath epics`
+
+Find epics
+
+```
+modernpath epics [flags]
+```
+
+## `modernpath epics search`
+
+Find epics by name or meaning
+
+Find epics of the bound system by code, title, description or meaning, in
+one ranked list.
+
+Each hit shows its code (or #id when it has none), process status, name and
+how it matched: keyword, semantic, or both. Hits found both ways come first.
+Pull an epic in full with working-set pull.
+
+```
+modernpath epics search <query> [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--json` | bool |  | emit the query and items as JSON |
+| `--limit` | int | 10 | hits to return (1–25) |
 
 ## `modernpath factory`
 
@@ -1085,7 +1324,7 @@ Bind once with 'modernpath factory connect --system <id>', then:
   watch     the daemon: sync + heartbeat + pull --apply on a cadence
 
 ```
-modernpath factory
+modernpath factory [flags]
 ```
 
 ## `modernpath factory answer`
@@ -1117,6 +1356,14 @@ modernpath factory connect [flags]
 ## `modernpath factory drift`
 
 Compare each target's evidence sha to the working tree (Done decays)
+
+Compare each target's evidence sha to the working tree (Done decays).
+
+A target whose recorded run no longer matches the head, or whose run's
+validity lapsed, is a drift item: your-move lists it as [Drift] with its
+basis — the run's revision and the head it no longer matches, or the run's
+time with its validity lapsed — and the re-record path, a fresh passing run
+recorded at the current head with 'factory evidence --pass <id>'.
 
 ```
 modernpath factory drift [flags]
@@ -1151,6 +1398,16 @@ a run posted on the epic or the SRs does not cover the UR; --pass the UR too,
 or the gate refuses "not yet". Evidence for
 completion is pinned to the delivered (merged) revision, not the branch head.
 
+--file <runs.json> records several runs in one call: a JSON array of
+{pass, fail, skip (id lists), role, revision, kind, log, totals (an object
+of counts)}. Each entry is one run, posted on its own; its run id is derived
+from the whole entry (the resolved revision, role, kind, log and each target
+with its outcome), so running the same file again updates the same runs and
+records any that failed before, while two different results never share an
+id. Each run id is printed with the server's result; a refused run is
+reported and the rest continue, and the command exits non-zero when any
+failed. --file cannot be combined with the per-run flags.
+
 ```
 modernpath factory evidence [flags]
 ```
@@ -1158,6 +1415,7 @@ modernpath factory evidence [flags]
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
 | `--fail` | string |  | failing target ids, comma-separated |
+| `--file` | string |  | record several runs from a JSON array of {pass, fail, skip, role, revision, kind, log, totals}, one run per entry with an id derived from the entry |
 | `--kind` | string | local_test | run kind: ci\|local_test\|browser_verification\|manual |
 | `--log` | string |  | log reference (command line, CI url) |
 | `--pass` | string |  | passing target ids, comma-separated |
@@ -1176,9 +1434,18 @@ With an external_id, show that one gate — its state and, when it carries an
 answer, the answer, chosen options, USER: source, answerer and applied state —
 so "did my approval land?" is answerable without reading the event stream. An
 applied answer is stored closed; read it by id or under --state all.
+The stored decision brief is shown without --json or --verbose: What, Why now,
+Changes if approved, Risk if wrong and Recommendation.
+
+With --audit and an external_id, read answer and application blockers, review
+provenance and recovery guidance without changing the work selection.
 
 With --state, list gate history: open, answered, dismissed, superseded, or all.
 --json prints the server's gate envelope on stdout and nothing else.
+
+A listing prints at most --limit gates (default 50) from --offset in text,
+and says how to see more; under --json every gate is printed unless --limit
+is given.
 
 ```
 modernpath factory gates [external_id] [flags]
@@ -1186,8 +1453,11 @@ modernpath factory gates [external_id] [flags]
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
+| `--audit` | bool |  | audit one gate: answer and application blockers, review provenance and next actions |
 | `--json` | bool |  | emit the server's gate envelope as JSON on stdout and nothing else |
 | `--kind` | string |  | show only this kind (approval_request, decision, question, roadblock, …) |
+| `--limit` | int | 0 | print at most N records (default 50 in text output; every record under --json) |
+| `--offset` | int | 0 | skip the first N records |
 | `--state` | string |  | list gate history in this state: open, answered, dismissed, superseded, all (default: the open queue) |
 
 ## `modernpath factory image`
@@ -1211,7 +1481,7 @@ modernpath factory image <prompt> [flags]
 The document manifest: which files feed sync, and how they parse
 
 ```
-modernpath factory manifest
+modernpath factory manifest [flags]
 ```
 
 ## `modernpath factory manifest init`
@@ -1231,7 +1501,7 @@ modernpath factory manifest init [flags]
 Show the active manifest (file or defaults) and what it resolves to
 
 ```
-modernpath factory manifest show
+modernpath factory manifest show [flags]
 ```
 
 ## `modernpath factory next-id`
@@ -1246,7 +1516,7 @@ consults both, and says which basis it used — an offline answer is a weaker cl
 than an online one, and you cannot tell them apart from the id alone.
 
 ```
-modernpath factory next-id <CONTEXT>
+modernpath factory next-id <CONTEXT> [flags]
 ```
 
 ## `modernpath factory pin`
@@ -1254,7 +1524,7 @@ modernpath factory next-id <CONTEXT>
 Manage your compliance PIN (the guard release signoff and activation require)
 
 ```
-modernpath factory pin
+modernpath factory pin [flags]
 ```
 
 ## `modernpath factory pin set`
@@ -1304,7 +1574,7 @@ are counted rather than listed, because reporting them as missing is noise
 that trains a reader to ignore the report.
 
 ```
-modernpath factory reconcile
+modernpath factory reconcile [flags]
 ```
 
 ## `modernpath factory release`
@@ -1312,12 +1582,23 @@ modernpath factory reconcile
 Select the current release that factory sync stamps and scopes to
 
 ```
-modernpath factory release
+modernpath factory release [flags]
 ```
 
 ## `modernpath factory release activate`
 
-Activate a delivery release tenant-wide (attributed; distinct from the local `use` stamp)
+Activate a delivery release on the bound system (distinct from the local `use` stamp)
+
+Activate or reactivate a delivery release on the bound system.
+
+The activation needs the release PIN of the signed-in person (set in Mission
+Control; pass it with --pin or --pin-stdin). It records the release-selection gate
+GATE-RELEASE-<slug> on the system it is run from. The server composes an
+attributable source unless --source is supplied. Re-running
+the activation on a system whose release is active but carries no such gate
+records one without changing the release; a gate of that purpose and scope
+that is open or answered otherwise is superseded by the next
+GATE-RELEASE-<slug>-<n>, and the reads take the newest approved one.
 
 ```
 modernpath factory release activate <slug> [flags]
@@ -1325,15 +1606,18 @@ modernpath factory release activate <slug> [flags]
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
-| `--pin` | string |  | release PIN confirmation (the same guard release lifecycle transitions require) |
-| `--source` | string |  | attributable USER: source, required (e.g. USER:2026-09-11:why) |
+| `--close-current` | bool |  | explicitly close the currently active release in this system (planned releases are never closed) |
+| `--pin` | string |  | existing release PIN confirmation (otherwise prompt or --pin-stdin) |
+| `--pin-stdin` | bool |  | read the existing compliance PIN from stdin |
+| `--reason` | string |  | optional activation reason recorded by the server |
+| `--source` | string |  | optional attributable source (the server composes one when omitted) |
 
 ## `modernpath factory release clear`
 
 Unset the current release (sync runs unscoped; existing stamps stay)
 
 ```
-modernpath factory release clear
+modernpath factory release clear [flags]
 ```
 
 ## `modernpath factory release show`
@@ -1341,7 +1625,7 @@ modernpath factory release clear
 Print the current release
 
 ```
-modernpath factory release show
+modernpath factory release show [flags]
 ```
 
 ## `modernpath factory release use`
@@ -1349,15 +1633,22 @@ modernpath factory release show
 Set current_release in .modernpath/config.json (e.g. modernpath-v1-09)
 
 ```
-modernpath factory release use <slug>
+modernpath factory release use <slug> [flags]
 ```
 
 ## `modernpath factory status`
 
-Show the local binding and pending op count
+Show the local sync stamp, server active release, and pending op count
+
+Show the workspace binding, the local sync-release stamp, the server active
+release, the pending op count, the
+pieces you hold, and one server line: the store revision the bound server is
+serving and the sync contract version it advertises (or why it could not be
+read). The server line is a single read bounded at 2 s and writes nothing —
+after a merge it tells you whether production serves it.
 
 ```
-modernpath factory status
+modernpath factory status [flags]
 ```
 
 ## `modernpath factory sync`
@@ -1392,20 +1683,28 @@ modernpath factory watch [flags]
 
 ## `modernpath feedback`
 
-File a tooling gap as a BACKLOG-TOOL record in your store (the sanctioned channel)
+File a tooling gap only in the ModernPath workspace
 
 File a tooling gap — a surface the CLI, the store, Mission Control or the
-harness lacked — as one BACKLOG-TOOL-<n> record in your own store, attributed
-to you, with the CLI build, the server contract version and the time captured.
-The record id is printed; read it back with 'working-set pull <id>'.
+harness lacked — as one BACKLOG-TOOL-<n> record in the current ModernPath
+workspace, attributed to you, with the CLI build, server contract version and
+time captured. The credential must belong to the ModernPath organization; the
+server must identify the checkout's bound system with slug modernpath. Feedback
+refuses customer workspaces rather than changing the destination.
+The record id is printed; read it from a checkout bound to ModernPath with
+'working-set pull <id>'.
 
 --last also attaches the previous modernpath command you ran, its exit status
 and the tail of its output (from the local history .modernpath/cli-history.log;
-hook invocations and 'auth' are never in it). Nothing else is captured.
+hook invocations and 'auth' are never in it), and shows the entry it is about
+to attach before the record is written. --ref <n> attaches the n-th most
+recent command instead (--ref 1 is --last) and implies --last; a value beyond
+the recorded count is refused naming how many entries exist. Nothing else is
+captured.
 
-Without a stored credential, or when the server cannot be reached, the line is
-appended to process/tooling-gaps.md at the workspace root and the output says
-so. A create the server refuses is reported verbatim and nothing is written.
+When the credential or destination cannot be verified, the command fails
+without writing a backlog record or a local fallback file. A create the server
+refuses is reported verbatim.
 
 Examples:
   modernpath feedback "process check prints only a check name"
@@ -1418,6 +1717,7 @@ modernpath feedback <line> [flags]
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
 | `--last` | bool |  | attach the previous modernpath command, its exit status and output tail |
+| `--ref` | int | 0 | attach the n-th most recent recorded command instead (1 is --last; implies --last) |
 
 ## `modernpath focus`
 
@@ -1477,7 +1777,7 @@ The hook auto-injects codebase context when asking questions using
 LLM-based intelligent relevance filtering.
 
 ```
-modernpath hooks
+modernpath hooks [flags]
 ```
 
 ## `modernpath hooks doctor`
@@ -1492,7 +1792,7 @@ downgrades every hook run while still exiting 0 — the failure this command
 exists to make visible.
 
 ```
-modernpath hooks doctor
+modernpath hooks doctor [flags]
 ```
 
 ## `modernpath hooks install`
@@ -1531,7 +1831,7 @@ modernpath hooks install [flags]
 Check hook installation status for all agents
 
 ```
-modernpath hooks status
+modernpath hooks status [flags]
 ```
 
 ## `modernpath hooks uninstall`
@@ -1539,7 +1839,7 @@ modernpath hooks status
 Remove ModernPath hooks
 
 ```
-modernpath hooks uninstall
+modernpath hooks uninstall [flags]
 ```
 
 ## `modernpath import`
@@ -1585,9 +1885,11 @@ Initialize a ModernPath project in the current directory.
 
 This command will:
 1. Connect to the ModernPath platform (cloud production, api.modernpath.ai, by default)
-2. Let you select a system
-3. Download the documentation and analysis data
-4. Create a .modernpath directory with all the data
+2. Sign you in when no credential is stored, or stop naming the sign-in command
+   (without a terminal, or when the stored credential has expired)
+3. Let you select a system (--system-id or --system when there is no terminal)
+4. Download the documentation and analysis data
+5. Create a .modernpath directory with all the data
 
 Example:
   modernpath init                    # Connect to cloud production
@@ -1624,7 +1926,7 @@ Example:
   modernpath init workspace --local --force
 
 ```
-modernpath init workspace
+modernpath init workspace [flags]
 ```
 
 ## `modernpath install`
@@ -1656,6 +1958,19 @@ Change shared process instructions in the req-driven-dev source repository and
 ship a new CLI. Project instructions live in the rest of AGENTS.md and
 .claude/rules/.
 
+--store-backed --source USER:… declares a bound workspace that never had file
+ledgers store-backed in one step: the server records the store-backed
+activation gate, answered by you with the USER: source, and sets the system's
+process-store state active in one action; then process/store-backed.md is
+written in the same shape 'migrate flip' writes — the accepted source with its
+gate, the server and system, and no retired files — and the install that
+follows withholds the ledger skill. The server decides by its own state: a
+system seeded by an import or cleared after a flip is refused by name and goes
+through 'migrate flip'; an already-declared system is reported and left as it
+is; a marker present over an undeclared server, or a declaration recorded from
+another checkout, has its missing half completed. A workspace with ledgers
+under tasks/ is refused here and goes through the flip.
+
 ```
 modernpath install [flags]
 ```
@@ -1664,6 +1979,8 @@ modernpath install [flags]
 |---|---|---|---|
 | `--check` | bool |  | report tool-owned files that were edited or are missing, and exit non-zero (for CI) |
 | `--dry-run` | bool |  | show what would change without writing |
+| `--source` | string |  | the USER:<date>:<decision> source the store-backed declaration is answered with (with --store-backed) |
+| `--store-backed` | bool |  | declare this bound, ledgerless workspace store-backed (gate answered with --source, server state active, marker written) before installing |
 
 ## `modernpath migrate`
 
@@ -1679,7 +1996,7 @@ The tracked ledgers stay authoritative until the import is done, verified,
 and the flip is accepted at its own human gate.
 
 ```
-modernpath migrate
+modernpath migrate [flags]
 ```
 
 ## `modernpath migrate clear`
@@ -1717,6 +2034,8 @@ modernpath migrate flip [flags]
 | `--gate-answer` | string |  | the gate's stored answer, echoed verbatim (required) — a declaration rides only the answer actually given |
 | `--gate-fingerprint` | string |  | the gate's current content-shadow identity (required) |
 | `--no-docs` | bool |  | skip workspace-document ops (upsert_document); import process state only (flip delegates to migrate run) |
+| `--residue-gate` | string |  | answered human migration_residue gate carrying the exact manifest |
+| `--residue-manifest` | string |  | exact gate-state residue TSV for the flip's re-verification import |
 
 ## `modernpath migrate report`
 
@@ -1738,6 +2057,8 @@ modernpath migrate report [flags]
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
 | `--accept` | string |  | file of accepted residue keys (one RecordID\|Field per line, # comments) from an applied gate answer |
+| `--residue-gate` | string |  | answered human migration_residue gate carrying the exact manifest |
+| `--residue-manifest` | string |  | exact gate-state residue TSV reviewed by a human decision gate |
 
 ## `modernpath migrate run`
 
@@ -1758,6 +2079,8 @@ modernpath migrate run [flags]
 | `--accept` | string |  | file of accepted residue keys, the same one the report takes — the import refuses on any blocking loss it does not cover |
 | `--from-empty` | bool |  | the final import to a flip target: refuse before writing unless the store holds no process rows for this system |
 | `--no-docs` | bool |  | skip workspace-document ops (upsert_document); import process state only |
+| `--residue-gate` | string |  | answered human migration_residue gate carrying the exact manifest |
+| `--residue-manifest` | string |  | exact gate-state residue TSV reviewed by a human decision gate |
 
 ## `modernpath new`
 
@@ -1803,14 +2126,14 @@ modernpath new [project-name] [flags]
 Navigate the delivery loop: phase checks (server-computed), rendered locally
 
 ```
-modernpath process
+modernpath process [flags]
 ```
 
 Flags this command shares with its subcommands:
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
-| `--piece` | string |  | when you hold several current selections, name which one process next/check/reconcile resolves |
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process advance`
 
@@ -1827,20 +2150,83 @@ and the epic's own step when its members allow it.
 It refuses before any write, naming the fact: no RED recorded (record it
 with factory evidence --fail <SR> --role RED at the RED commit, or with
 --revision); evidence not passing (failing, claimed, stale); the SR not a
-member of a piece you hold (--piece names one when you hold several); a
-server that serves no delivery facts. A second call on an SR already
+member of a piece you hold (--piece names one when you hold several; an
+SR that is itself one of the pieces you hold needs none); a TODO SR with no
+live entry of its own at the current packet aggregate; a server that serves
+no delivery facts. A second call on an SR already
 IN_REVIEW at its current hash reports nothing to do. Transitions and FAILs
 of sibling members are printed as information and never fail the advance;
 a FAIL naming the SR itself does, after the trace is recorded.
 
+--all --piece <EPIC> --log <RUN> does the same for every system requirement
+of the piece in one call, each through the same path: it prints each SR it
+moved and, for each one it did not, the refusal above that names why. It
+exits non-zero when any SR was not advanced; the ones that were stay moved.
+
 ```
-modernpath process advance <SR> [flags]
+modernpath process advance <SR> | --all --piece <EPIC> [flags]
 ```
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
+| `--all` | bool |  | advance every system requirement of the --piece, reporting each one moved or why not |
 | `--body` | string |  | the lower trace's verdict details (RED and GREEN observations, cleanup) |
 | `--log` | string |  | the RUN: reference the lower trace cites (the passing run's command or report) |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process backlog`
+
+Backlog, gap and tooling records
+
+```
+modernpath process backlog [flags]
+```
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process backlog list`
+
+List backlog, gap and tooling records, newest first
+
+List the system's backlog, gap and tooling records — one line each: id,
+kind, disposition, who raised it, when, title — newest first.
+
+--kind backlog|gap|tooling narrows by kind; --disposition <word> narrows by
+disposition prefix (OPEN, DEFERRED, ROUTED to <id>, REJECTED with <source>,
+CLOSED by <id>, ACCEPTED with <source>). A value outside the vocabulary is
+refused before any request. Read one record with working-set pull <id>;
+change its disposition with author update --kind backlog … --source USER:…
+
+Text output prints at most --limit records (default 50) from --offset, and
+says how to see more; --json prints every record as {"backlog": [...]}
+unless --limit is given.
+
+```
+modernpath process backlog list [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--disposition` | string |  | a disposition or its prefix: OPEN, DEFERRED, ROUTED to <id>, REJECTED with <source>, CLOSED by <id>, ACCEPTED with <source> |
+| `--json` | bool |  | print the records as JSON on stdout and nothing else |
+| `--kind` | string |  | backlog \| gap \| tooling |
+| `--limit` | int | 0 | print at most N records (default 50 in text output; every record under --json) |
+| `--offset` | int | 0 | skip the first N records |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process cascade-mode`
 
@@ -1858,6 +2244,12 @@ modernpath process cascade-mode [report|enforce] [flags]
 |---|---|---|---|
 | `--source` | string |  | attributable USER: source (required to set the mode; not used by the no-argument read), e.g. USER:2026-09-05:enforce-cascade |
 
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
 ## `modernpath process check`
 
 Render one phase's decision-table checks for the current selection (a pure read)
@@ -1869,6 +2261,12 @@ modernpath process check [flags]
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
 | `--phase` | string |  | the phase to check |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process complete`
 
@@ -1892,9 +2290,33 @@ gate cannot happen here.
 It refuses before any write, naming the fact: HEAD not at the delivered
 tip; a failed fetch (--no-fetch is for offline fixtures only); no delivery
 facts served; a member not IN_REVIEW (process advance <SR>); the epic not
-IN_REVIEW (process reconcile --apply folds it); an incomplete brief; a taken
-gate id (--gate-id COMPLETE-<scope>-R2). After the human answers, apply
-members first with author advance --kind requirement, then the epic.
+IN_REVIEW and never completed before (process reconcile --apply folds it);
+an incomplete brief; an open or answered gate id (answer or apply it). After
+the human answers, apply members first with author advance --kind
+requirement, then the epic.
+
+The run names the epic, its user requirement and every member this
+completion moves (IN_REVIEW): a DONE sibling an earlier completion accepted
+keeps its CURRENT evidence and is never re-posted, while the completion
+trace still names every member.
+
+When a COMPLETE-TRACE-<scope> in the series already PASSes at the unchanged
+packet aggregate it is reused rather than recorded again, and the run is
+posted only for the targets that trace's own run did not name — no run at
+all when it named them all, and the whole run when its body carries no
+readable target list, since unread coverage is never taken for coverage. A
+trace is immutable, so the remainder run is not recorded on it: a repeat at
+the same aggregate posts that remainder again.
+
+A reopened epic — IN_PROGRESS after a defect demotion,
+every member back in IN_REVIEW or DONE, its earlier COMPLETE-<scope> closed —
+completes in the same call: the successor trace COMPLETE-TRACE-<scope>-R2 is
+recorded, process reconcile folds the epic to IN_REVIEW, and the successor
+gate COMPLETE-<scope>-R2 opens naming the predecessor. A rebuild that moved
+the packet aggregate under the applied entry approval is refused naming
+process reapply-entry. A closed COMPLETE-<scope> otherwise derives the next
+free -R<n> the same way; --gate-id overrides the id only — an open or
+answered id in the series is still refused.
 
 ```
 modernpath process complete <scope> [flags]
@@ -1903,12 +2325,18 @@ modernpath process complete <scope> [flags]
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
 | `--body` | string |  | audit disclosures appended to the completion trace (gaps, deferrals, decisions) |
-| `--brief-file` | string |  | JSON brief object, overriding the packet's completion_brief section |
+| `--brief-file` | string |  | a JSON brief object or the markdown brief bullets, overriding the packet's completion_brief section |
 | `--dry-run` | bool |  | print the ceremony the verb would run and post nothing |
 | `--gate-id` | string |  | the gate id to open (default COMPLETE-<scope>; a successor when that id is taken) |
 | `--kind` | string | ci | the evidence run kind: ci\|local_test\|browser_verification\|manual |
 | `--log` | string |  | the delivered run's reference (CI url or command) the completion evidence cites (required) |
 | `--no-fetch` | bool |  | skip the fetch of the remote default branch (offline fixtures only) |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process enter`
 
@@ -1924,15 +2352,52 @@ packet's entry_brief section (the PROCESS.md brief shape: - What:, - Why now:,
 its transition is PROPOSED->TODO. The selection then moves to phase entry.
 
 It refuses before any write, naming the fact: no delivery facts served (deploy
-the server first); packet sections missing or stale (working-set push); no
-independent passing cold-review trace at the aggregate (rdd-cold-review, then
-author trace --purpose cold-review); members split between PROPOSED and
-PENDING_VERIFICATION (one gate carries one FROM state — open the second by
-hand with author gate --from PENDING_VERIFICATION); an incomplete brief; a
-taken gate id (pass --gate-id ENTRY-<scope>-R2). --dry-run prints the plan and
-posts nothing. The verb records no trace of its own: it names the cold-review
-trace the store already holds, so a gate can never be born before its
-prerequisite.
+the server first); no independent passing cold-review trace at the aggregate
+(rdd-cold-review, then author trace --purpose cold-review); packet sections
+missing (working-set push); an incomplete brief; a DONE or OBSOLETE epic whose
+as-built members would enter (demote or reopen it first). --dry-run prints the
+plan and posts nothing.
+
+A section whose content is unchanged but whose scope context moved (a record
+edit moves it) is re-stamped rather than refused: once the cold review
+passes, the verb re-puts the section's served content under its served
+fingerprint, so a concurrent edit conflicts, then re-reads and refuses only
+the sections still missing, by name. --dry-run names the sections it would
+re-stamp and writes nothing. --brief-file takes a JSON brief object or the
+markdown brief bullets; a file that is neither is refused with the parse
+error. The verb records no trace of its own: it
+names the cold-review trace the store already holds, so a gate can never be
+born before its prerequisite.
+
+Reconnaissance drift (SR-CLI-028-002): the selection must record the
+revision the packet was reconnoitred at (working-set select --recon-revision;
+missing, the verb refuses before the facts read). The verb fetches the remote
+default branch (--no-fetch skips the fetch, offline fixtures only) and compares
+its tip: a tip equal to the revision, or an ancestor of it (a packet
+reconnoitred on a branch ahead of main), is current; otherwise the paths
+changed from the merge-base to the tip are intersected with the paths the
+packet cites as CODE: or TEST:, and a non-empty intersection refuses naming
+the tip and each path. --allow-drift USER:<date>:<why> accepts the drift on
+the human's word and the gate body records the source, the tip and the paths;
+in a two-call entry both calls run the check. Material drift makes the packet
+and its reviews stale (PROCESS.md): re-reconnoitre rather than accept by
+habit.
+
+As-built members first: an epic whose members split between PROPOSED and
+PENDING_VERIFICATION enters in two steps. The first call opens
+ENTRY-<scope>-VERIFY (PENDING_VERIFICATION->TODO) naming the as-built members
+only, pinned at the epic's packet aggregate so the epic's cold review is its
+prerequisite — the store admits it for a still-PROPOSED epic on that passing
+review — and says which PROPOSED members and the epic enter in the second
+call; once those members are TODO, the second call opens ENTRY-<scope> as
+usual. An epic already TODO, READY, IN_PROGRESS or IN_REVIEW with as-built
+members gets the verification gate alone.
+
+Successor ids: when ENTRY-<scope> (or -VERIFY) is already closed or withdrawn
+— a scope demoted to PROPOSED and re-planned — the verb derives the next free
+ENTRY-<scope>-R2, -R3… and names the closed predecessor in the gate; an open
+or answered id is never rotated past, not even under --gate-id, which
+overrides the id only.
 
 ```
 modernpath process enter <scope> [flags]
@@ -1940,17 +2405,31 @@ modernpath process enter <scope> [flags]
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
-| `--brief-file` | string |  | JSON brief object, overriding the packet's entry_brief section |
+| `--allow-drift` | string |  | accept reconnaissance drift on the human's word: a USER:<date>:<why> source, recorded on the gate with the tip and the changed cited paths |
+| `--brief-file` | string |  | a JSON brief object or the markdown brief bullets, overriding the packet's entry_brief section |
 | `--dry-run` | bool |  | print the gate the verb would open and post nothing |
 | `--gate-id` | string |  | the gate id to open (default ENTRY-<scope>; a successor when that id is taken) |
+| `--no-fetch` | bool |  | skip the fetch of the remote default branch before the drift check (offline fixtures only) |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process findings`
 
 Record, list, and disposition cold-review findings
 
 ```
-modernpath process findings
+modernpath process findings [flags]
 ```
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process findings add`
 
@@ -1979,8 +2458,25 @@ section the finding points at. --id is bounded at 255 characters; a value
 over the bound is refused as a 422 naming the field and the limit, and
 nothing is written.
 
+--introduced-by <F-id> names the earlier finding of the same scope whose
+resolution introduced the mechanism this finding faults (SR-CLI-027-003);
+the server refuses an id it does not hold on the scope, or the finding
+itself, and a server that does not advertise finding_resolution is refused
+before any request. process findings list counts, per round, the findings
+resolved with a widening and those on earlier resolutions, and flags a
+round whose material findings all fall on earlier resolutions: the packet
+was reviewed incomplete (PROCESS.md §Entry packet).
+
 --aggregate is the full packet aggregate the finding was raised against
 (process next -v); --scope is <kind>:<external-id>, kind epic or single_sr.
+
+--file <findings.json> records a whole review's findings in one call: a JSON
+array of {id, scope, category, severity, owner, source, body, introduced_by}
+(introduced_by as --introduced-by, optional). Each finding
+is pinned to the aggregate of its own scope, read for that scope, so it works
+while you hold several pieces. Ids the scope already holds are skipped, so a
+re-run after a partial failure adds only what is missing. Each result is
+printed, and the call exits non-zero when any finding was not recorded.
 
 ```
 modernpath process findings add [flags]
@@ -1991,15 +2487,61 @@ modernpath process findings add [flags]
 | `--aggregate` | string |  | the packet aggregate fingerprint it was raised against |
 | `--body` | string |  | the finding body |
 | `--category` | string |  | the finding category (required; one of the nine names) |
+| `--file` | string |  | a JSON array of findings to record in one call |
 | `--id` | string |  | the finding external id |
+| `--introduced-by` | string |  | the earlier finding (same scope) whose resolution introduced the mechanism this one faults |
 | `--owner` | string |  | the owner |
 | `--scope` | string |  | the scope as <kind>:<external-id> |
 | `--severity` | string |  | critical\|major\|minor\|note (required; a note never blocks) |
 | `--source` | string |  | the source |
 
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
 ## `modernpath process findings disposition`
 
 Change a finding's disposition (OPEN/RESOLVED/DEFERRED/REJECTED)
+
+Change one finding's disposition. The write is fingerprint-guarded:
+pass --expected-fingerprint from process findings list, or pass --scope
+<kind>:<external-id> with --from <the disposition you saw>, and the CLI
+writes only while the finding is still in it. A finding already in the
+target disposition is reported unchanged.
+
+A RESOLVED disposition names how it resolved (SR-CLI-027-001, PROCESS.md
+§Entry packet): --resolution packet-edit when the packet was clarified,
+scope for a scope action (--ref names its record: a split epic, a deferral,
+a backlog record), or decision for a human decision (--ref is its USER:
+source). RESOLVED without --resolution, scope without --ref, decision
+without a USER: ref, and --resolution with any other disposition are refused
+before any request. A server that does not advertise finding_resolution
+refuses before any request too: deploy the server first.
+
+A packet edit does not change a requirement (SR-CLI-027-002): the server
+snapshots each scoped member's content hash when a finding is raised, and a
+packet-edit resolution is refused naming every member that changed since —
+resolve it as scope or decision instead, or state the widening on the
+human's word with --widens USER:<date>:<why>, which the server stores and
+findings list -v prints. A finding raised before the snapshot existed is
+not compared.
+
+A finding already RESOLVED changes only its reference (REQ-CROSS-315): send
+--ref with --expected-fingerprint and no --disposition, and the server keeps
+the stored disposition and kind. A finding resolved before the kind existed
+keeps its null kind on that path.
+
+--file <dispositions.json> sets several in one call: a JSON array of
+{id, scope, from, disposition, ref, resolution, widens}; resolution and
+widens take the --resolution and --widens values and follow their rules,
+checked per entry before any request. Only the listed findings change, and
+each is written only while its current disposition is still "from"; a
+mismatch is refused and reported, and the rest still run. A finding already
+in the target disposition is reported unchanged. The call exits non-zero
+when any disposition was not written. There is no flag that resolves every
+open finding: a disposition names its finding.
 
 ```
 modernpath process findings disposition [flags]
@@ -2008,13 +2550,50 @@ modernpath process findings disposition [flags]
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
 | `--disposition` | string |  | OPEN\|RESOLVED\|DEFERRED\|REJECTED |
-| `--expected-fingerprint` | string |  | guard: the finding's current fingerprint |
+| `--expected-fingerprint` | string |  | guard: the finding's current fingerprint (read for --scope when omitted) |
+| `--file` | string |  | a JSON array of {id, scope, from, disposition, ref, resolution, widens} |
+| `--from` | string |  | with --scope: the disposition you saw; written only while the finding is still in it |
 | `--id` | string |  | the finding external id |
-| `--ref` | string |  | the disposition reference |
+| `--ref` | string |  | the disposition reference (alone: a reference-only change on a RESOLVED finding) |
+| `--resolution` | string |  | with RESOLVED: packet-edit\|scope\|decision — how the finding resolved |
+| `--scope` | string |  | the finding's scope as <kind>:<external-id>; the CLI reads the fingerprint |
+| `--widens` | string |  | with --resolution packet-edit: USER:<date>:<why> — the packet edit widened a member on the human's word |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process findings list`
 
 List findings for a scope (or all)
+
+List the findings of the piece you hold (--piece when several), of
+--scope <kind>:<external-id>, or of the whole system with --all. Each row
+prints its disposition (RESOLVED/<kind> once resolved), category, severity,
+id and full fingerprint; -v adds body, source, owner, scope, aggregate,
+disposition reference and widening source. Below the rows, one line per
+review round counts the findings, the open, material and note ones, those
+resolved with a widening and those on earlier resolutions, and a round is
+flagged when its material findings are all traceability (the review audits
+the document) or all fall on mechanisms an earlier round's resolutions
+introduced (the packet was reviewed incomplete).
+
+--all groups the rows and the rounds by scope (SR-CLI-027-004): a heading
+per scope, round numbering and flags per scope. --json writes one object
+to stdout and nothing else: findings (the rows as the store serves them,
+each with material, independent and its round) and rounds (one object per
+scope and round: scope, round, review_context_id, findings, open, material,
+notes, widened, on_earlier_resolutions, flags — the flags per round as
+strings, document and earlier_resolutions); -v adds nothing, and an empty
+result is the same object with empty arrays. The shape is the same across
+--all, --scope and the held-piece default.
+
+--limit and --offset page the rows (REQ-CROSS-447): text prints at most 50
+by default with a footer naming the next offset; --json carries every row
+unless --limit is given, with total and has_more. The round summary always
+counts every row of its scope.
 
 ```
 modernpath process findings list [flags]
@@ -2022,7 +2601,247 @@ modernpath process findings list [flags]
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
+| `--all` | bool |  | the whole system's findings, not only the piece you hold, grouped per scope |
+| `--json` | bool |  | one JSON object on stdout: the rows (findings) and the per-scope round summary (rounds) |
+| `--limit` | int | 0 | print at most N records (default 50 in text output; every record under --json) |
+| `--offset` | int | 0 | skip the first N records |
 | `--scope` | string |  | the scope as <kind>:<external-id> |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process lane`
+
+The small-change lane: authorize, review, enter, check and complete small changes
+
+The small-change lane scales review and gates to a small change (PROCESS.md,
+Small-change lane). With no subcommand it prints this System's lane
+authorizations: the current one and any waiting for an answer (a read).
+
+The sequence for one small change:
+
+  author apply --file sr.yaml                   # the SR with lane_class and a source
+  working-set pull <SR> --for-review            # the reviewer reads REVIEW.md
+  process lane review <SR> --file review.json   # the narrow review, one pass
+  process lane enter <SR>                       # PROPOSED->TODO by the authorization
+  factory evidence --file runs.json             # RED, then the passing run
+  process advance --all --piece <SR> --log <run>
+  process lane check <SR> --commit <merged sha> # after delivery to the default branch
+  process lane complete --log <run>             # one lane-batch gate for many
+  process lane complete --apply                 # after the answer
+
+A lane authorization is prepared with process lane authorize and answered
+once by a workspace admin, in the web app or with process lane approve <gate>.
+factory answer cannot answer it.
+
+```
+modernpath process lane [flags]
+```
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process lane approve`
+
+Answer a lane authorization as the signed-in workspace admin (one call)
+
+Approve an open lane authorization of this System as the signed-in user.
+--text is recorded as your decision (default "approve").
+
+Only a workspace admin (or a platform superuser) signed in with this CLI can
+approve it; the approver is always the signed-in user. It refuses before any
+write when the gate is not a lane authorization. factory answer cannot
+answer a lane authorization.
+
+This approves a standing authorization for the whole System, so the kit asks
+before it runs, and a delegated agent cannot run it.
+
+```
+modernpath process lane approve <gate> [--text <decision>] [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--text` | string |  | your decision, recorded as written (default "approve") |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process lane authorize`
+
+Prepare a lane authorization for this System; a workspace admin answers it in the web app or with process lane approve
+
+Ask for a lane authorization for this System. It names the classes of
+small change it covers (defect_with_failing_test, wording, presentation,
+dependency_patch), the user ids who may apply it, when it expires (a date,
+a date and time, or <n>d from now; at most 30 days), a daily cap (1 to 10)
+and any extra paths the lane must not touch. --file reads the same terms
+from a JSON file, for example:
+
+  {"classes": ["wording"], "appliers": [7], "expires_at": "20d",
+   "daily_cap": 5, "excluded_globs": ["docs/legal/**"]}
+
+A workspace admin answers it once: in the web app (Mission Control), or with
+process lane approve <gate>. factory answer, an API token or an integration
+cannot answer it. The server checks every term and prints why it refuses
+one.
+
+```
+modernpath process lane authorize --classes <c,…> --appliers <user id,…> --expires <date> --cap <n> [--exclude <glob>]… | --file <lane.json> [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--appliers` | stringSlice |  | the user ids who may apply it (comma-separated or repeated) |
+| `--cap` | int | 0 | the daily cap of lane applications (1 to 10) |
+| `--classes` | stringSlice |  | the classes covered: defect_with_failing_test, wording, presentation, dependency_patch (comma-separated or repeated) |
+| `--exclude` | stringArray |  | a further excluded path glob (repeatable) |
+| `--expires` | string |  | the expiry: a date, a date and time, or <n>d from now; at most 30 days |
+| `--file` | string |  | read the terms from a JSON file (see the example above) |
+| `--id` | string |  | the gate id (default: the first free LANE-AUTH id) |
+| `--title` | string |  | the gate title |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process lane check`
+
+Post the small change's delivered file list; the server records the eligibility verdict
+
+Check that a delivered small change is small enough for the lane. The
+change is what reached the default branch: --commit is the merge or squash
+commit, compared with its first parent; for a rebase delivery, give the
+commit it started from with --base. The commit must be on the default
+branch (origin/HEAD, else origin/main, main or master).
+
+This CLI reports the changed files (git diff --name-only over the range);
+the server cannot read your repository, so it judges the list you report:
+at most five non-test source files, none in an excluded area. It records
+the result on the SR, and this prints it. The first full report for a
+commit counts: a later report for the same commit that leaves files out,
+or uses another base, is refused. A FAIL names each offending file and
+exits non-zero: the change leaves the lane.
+
+```
+modernpath process lane check <SR> --commit <sha> [--base <sha>] [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--base` | string |  | for a rebase delivery: the commit the change started from |
+| `--commit` | string |  | the commit that delivered the change to the default branch (a merge or squash commit, or a rebase delivery's tip) |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process lane complete`
+
+Open one lane-batch gate over the eligible small changes, or apply an answered one
+
+Complete small changes together with one approval. Without --apply it takes
+every small change that is IN_REVIEW and passed process lane check at its
+delivered commit, and is not already waiting in another batch. For each it
+records the run you name with --log as the run you report (nothing checks
+the run itself, and the approver is told so), then asks for one approval
+that lists each change and its files. The approver can reject single
+changes. The changes left out are listed with the reason. --dry-run prints
+the batch and writes nothing.
+
+With --apply, after the approval, each approved change becomes DONE; a
+rejected change stays IN_REVIEW, to be fixed and put in a new batch.
+
+```
+modernpath process lane complete --log <run> | --apply [--gate <LANE-BATCH>] [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--apply` | bool |  | mark the approved changes DONE after the approval |
+| `--dry-run` | bool |  | print the batch and write nothing |
+| `--gate` | string |  | with --apply: the batch to apply (default: every approved one) |
+| `--kind` | string | ci | the evidence run kind |
+| `--log` | string |  | the run you report for the delivered changes, such as a CI link (required to open a batch) |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process lane enter`
+
+Enter a small change by the current lane authorization (PROPOSED->TODO) in one call
+
+Enter one small change (PROPOSED->TODO) under the System's current lane
+authorization, in one call. The SR needs a lane class, a passing narrow
+review of its current content, and an approved lane authorization. The
+server checks that the authorization is current and covers the class, that
+you may apply it, the daily cap, and that the review was independent; if it
+refuses, its reason is printed.
+
+If the SR already entered through the lane and changed afterwards (TODO to
+IN_REVIEW), record a new narrow review of it first; enter then applies the
+authorization again.
+
+Nothing is written when the lane class, the passing review or the approved
+authorization is missing. Afterwards you work on the SR in the build phase.
+
+```
+modernpath process lane enter <SR> [flags]
+```
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process lane review`
+
+Record the small change's narrow independent review in one call
+
+Record the lane's narrow review of one small change from the reviewer's
+report file (the same file process review record reads). The SR must have
+been pulled with working-set pull <SR> --for-review: that pull records what
+the reviewer read.
+
+It refuses before any write when the SR was not pulled for review, has no
+lane class (set it before the review), changed since the review pull (pull
+it again and review again), or when a PASS would leave a blocking finding
+open. Otherwise it records the findings, their dispositions and the review
+verdict for the SR as it was reviewed.
+
+There is one pass and no second round: after a FAIL the change leaves the
+lane and is planned as a single SR with its full packet and review.
+
+```
+modernpath process lane review <SR> --file <review.json> [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | the reviewer's report file (JSON) |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process next`
 
@@ -2032,34 +2851,113 @@ Read the delivery context and print the derived phase, why, and the skill
 to run. It never writes.
 
 The read is caller-scoped. When you hold SEVERAL current pieces and name
-none, the server refuses by name — "you hold N current pieces: A, B — name
-one with --piece <id>" — and nothing is routed; "no current selection" is
-printed only when you hold none. Pass --piece <id> (a scope you took with
-working-set select) to route one.
+none, it prints one block per held piece — its scope, phase, why, the skill
+to run and the gates waiting on it — names the --piece <id> remedy the scoped
+verbs need, and exits 0; "no current selection" is printed only when you
+hold none. Pass --piece <id> (a scope you took with working-set select) to
+route one.
 
-The packet aggregate folds the server's compiled process revision, so an API
-deploy that repins the process moves every packet aggregate at once: a gate
-pinned before the deploy refuses its approval with "The planning scope
-changed since the decision was pinned", and every stamped packet section
-reads stale, with nothing naming the pin as the cause. -v prints the full
-process_revision beside the aggregate, so such a refusal can be traced to
-the process pin rather than to the packet.
+The packet aggregate is independent of the process revision: it folds the
+scope's content, membership and canonical sections — not the server's process
+pin — so a process-package repin deploy moves no aggregate and voids no open
+gate. -v prints the full process_revision beside the aggregate as
+information, so which process text a packet was reviewed under stays readable;
+it just no longer pins a decision.
 
 ```
-modernpath process next
+modernpath process next [flags]
 ```
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process prepare-inputs`
+
+Show current delivery context and document timestamps
+
+```
+modernpath process prepare-inputs [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--json` | bool |  | Print machine-readable preparation status |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process reapply-entry`
+
+Re-pin an applied entry gate to the current packet aggregate (requires a USER: attestation)
+
+Re-apply an applied entry gate pinned to a superseded packet aggregate.
+
+An applied entry gate is a closed, approved entry decision: PROPOSED or
+PENDING_VERIFICATION to TODO or READY, or a legacy NULL entry. Recovery covers
+all these entry transitions. When its pin no longer matches the current packet
+aggregate, process next routes it blocked and process advance refuses, because
+a lower trace cannot advance a member whose entry approval no longer matches the
+current packet aggregate. This verb re-pins that one applied entry gate to the
+current packet aggregate for <scope>, so the block clears and advancing resumes.
+
+It requires an attributable --decision USER:... source and performs NO machine
+content re-check: you attest that the aggregate moved for an immaterial reason
+(typically only the process text changed) and that the scope's content, members
+and sections did not. A material change needs re-review, not re-apply — re-pull
+the scope and let cold review run again.
+
+It re-pins the single applied entry anchor in place (it never opens a second
+gate) and records the USER: source on an audit event, like gate-withdraw.
+
+```
+modernpath process reapply-entry <scope> [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--decision` | string |  | attributable USER: source attesting the aggregate move was immaterial (required), e.g. USER:2026-09-14:process-repin-was-immaterial |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath process reconcile`
 
 Apply the legal automatic lifecycle transitions from current trace proofs (--apply to write)
 
 Compute — and with --apply, apply — the automatic transitions the current
-proofs allow: TODO -> IN_PROGRESS from a recorded RED, IN_PROGRESS ->
-IN_REVIEW from a passing lower trace at the requirement's content fingerprint
-plus a passing result, and the epic's own step once every member is reviewed
-and its traces pass. It never applies a human-gated transition (entry,
-completion) and never creates evidence or a trace; when it reports an unmet
-transition, the FAIL line names what is missing.
+proofs allow. The proofs differ by kind.
+
+A SYSTEM requirement is entry-gated. TODO -> IN_PROGRESS needs BOTH an
+applied entry gate at the current packet aggregate AND a recorded RED;
+IN_PROGRESS -> IN_REVIEW needs that same live entry plus a passing lower
+trace at the requirement's content fingerprint. An entry approval pinned to
+a superseded aggregate holds the SR where it is however fresh the proofs
+are — clear it with process reenter <SR> (or process reapply-entry when the
+aggregate moved for an immaterial reason). One exception: an SR reopened by
+an applied defect demotion that no entry gate names at all (an epic entered
+through a legacy approval gate) returns to IN_REVIEW on its RED and passing
+lower trace alone.
+
+A USER requirement has no entry gate of its own. It enters on its own
+recorded RED OR on a required SR that is already IN_PROGRESS, and reaches
+IN_REVIEW when every required SR is reviewed AND its upper trace passes.
+
+The epic takes two steps of its own: TODO or READY -> IN_PROGRESS as soon as
+ANY member is IN_PROGRESS, and IN_PROGRESS -> IN_REVIEW once EVERY member is
+reviewed and its applicable traces pass.
+
+It never applies a human-gated transition (entry, completion) and
+never creates evidence or a trace; when it reports an unmet transition, the
+FAIL line names what is missing.
 
 Run without --apply first: "nothing to do" can mean the proofs are not there
 yet, or that the read resolved a different scope — with several current
@@ -2074,9 +2972,139 @@ modernpath process reconcile [flags]
 |---|---|---|---|
 | `--apply` | bool |  | apply the transitions (default: dry run) |
 
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process reenter`
+
+Re-establish a stranded entry gate after a reversed-decision reopen (fresh cold review + human approval)
+
+Re-establish an applied entry gate stranded by a reversed-decision reopen.
+
+A scoped `process supersede --apply` reopens a shipped item by demoting it to
+IN_PROGRESS and moving the packet aggregate, so its applied entry gate is stranded
+at a superseded aggregate. Because the content CHANGED (a material reversal),
+`process reapply-entry` — an immaterial attestation that nothing changed — is the
+wrong tool. This verb re-establishes entry the honest way, at a human gate backed
+by a fresh independent cold-review PASS at the current aggregate.
+
+Open (no --apply) opens a re-entry approval gate REENTRY-<scope> (purpose
+"reentry"; --gate-id for a successor when that id is taken — e.g. a prior
+re-entry gate was withdrawn and its id stays reserved), naming the current
+cold-review trace as its prerequisite; it refuses if there is no independent
+passing cold-review at the current aggregate. Answer it
+`approve` (Mission Control or `factory answer`), then run --apply: the server
+verifies the answered gate and the cold-review, re-pins the one stranded applied
+entry gate to the current aggregate, and closes the re-entry gate. The item stays
+IN_PROGRESS; reapply-entry's immaterial-only contract is untouched.
+
+```
+modernpath process reenter <scope> [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--apply` | bool |  | re-pin the entry gate to the current aggregate (after the re-entry gate is answered approve); without it, open the re-entry approval gate |
+| `--gate-id` | string |  | the gate id to open (default REENTRY-<scope>; a successor when that id is taken, e.g. after a withdrawn re-entry gate reserved REENTRY-<scope>) |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process review`
+
+Record a delegated cold review
+
+```
+modernpath process review [flags]
+```
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
+## `modernpath process review record`
+
+Record a whole cold review — findings, dispositions and the trace — in one call
+
+Record a delegated cold review from the reviewer's report JSON in one call:
+{verdict: PASS|FAIL, body, source, findings[], dispositions[]}. A finding is
+{id, category, severity, owner, source, body, introduced_by} and a
+disposition is {id, from, disposition, ref, resolution, widens}, as for
+process findings add --file and process findings disposition --file; their
+scope defaults to the reviewed scope, and naming another scope is refused.
+A RESOLVED disposition names its resolution (packet-edit, scope or
+decision), as --resolution does.
+
+The scope is --scope (bare or <kind>:<id>), or the piece you hold (--piece
+when you hold several). It must have been pulled with working-set pull
+--scope --for-review: that pull stamps the review context and the packet
+aggregate the reviewer read.
+
+It refuses before any write when:
+  - the scope carries no review-mode stamp;
+  - the packet aggregate moved since the review pull (re-pull --for-review
+    and review again);
+  - the verdict is PASS while a material finding in scope would stay OPEN
+    or DEFERRED: the server's open material findings plus the file's new
+    ones, after the file's dispositions.
+  - a finding or disposition breaks a rule of the single verbs: the
+    category and severity vocabulary, a RESOLVED without its resolution,
+    scope without ref, decision without a USER: ref, widens outside a
+    packet edit, or a resolution or introduced_by a server without
+    finding_resolution would drop.
+
+Then it records the new findings (ids already recorded are skipped) against
+the stamped aggregate and review context, applies each disposition only
+while the finding is still in its "from" disposition, and records the
+cold-review trace (plan->entry) naming the scope and each member, pinned to
+the stamped aggregate. Each result is printed; any failure stops before the
+trace and exits non-zero, and a re-run records only what is missing. The
+trace id is --id, or CR-TRACE-<scope>-<review context>.
+
+```
+modernpath process review record --file <review.json> [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | the reviewer's report JSON {verdict, body, source, findings[], dispositions[]} |
+| `--id` | string |  | the trace id (default CR-TRACE-<scope>-<review context>) |
+| `--scope` | string |  | the reviewed scope (bare or <kind>:<id>); the held piece when omitted |
+| `--title` | string |  | the trace title (default "Cold review of <scope>") |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
+
 ## `modernpath process supersede`
 
-Supersede a traced item, computing the invalidation cascade (report-only unless the system is in enforce mode)
+Supersede a traced item, computing the invalidation cascade (a dry run unless --apply)
+
+Supersede a traced item — compute its invalidation cascade: result validity
+-> STALE, dependent gates -> STALE/SUPERSEDED, and IN_REVIEW/DONE items demoted
+to IN_PROGRESS through declared relations.
+
+By default this is a DRY RUN that prints what would change and writes nothing
+(unless the system's cascade mode is already 'enforce'). --apply performs the
+cascade on an attributable --source USER: reference while the system's cascade
+mode stays unchanged — the scoped, attributed way to reopen a shipped (DONE)
+item without flipping the whole system into enforce.
+
+--apply is scoped to this ONE supersede, but the cascade still follows declared
+relations: it demotes the named item AND its dependent IN_REVIEW/DONE closure
+(derived URs, and the Epics that contain the item or those URs). Review the
+'would demote' list from the dry run before you --apply. --supersedes records the
+prior decision the reversal overrides, so the drift event captures it old->new.
 
 ```
 modernpath process supersede <external-id> [flags]
@@ -2084,7 +3112,16 @@ modernpath process supersede <external-id> [flags]
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
+| `--apply` | bool |  | perform the cascade for THIS one item (scoped) instead of a dry run; requires --source |
 | `--reason` | string |  | why the item's trace is superseded |
+| `--source` | string |  | attributable USER: source for a scoped --apply, e.g. USER:2026-09-16:reverse-§061.6 |
+| `--supersedes` | string |  | the prior decision this reversal overrides, e.g. USER:2026-08-29 (recorded on the drift event) |
+
+Inherited from `modernpath process`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one process next, check, reconcile, advance, complete and findings list resolve |
 
 ## `modernpath read-doc`
 
@@ -2100,6 +3137,7 @@ Examples:
   modernpath read-doc --id=doc_abc123           # Get specific doc by ID
   modernpath read-doc "Authentication"          # Search by title
   modernpath read-doc --tier=module             # Filter by tier
+  modernpath read-doc --list --tier=subsystem    # List only subsystem docs
   modernpath read-doc --tier=subsystem --angle=architecture
 
 ```
@@ -2110,7 +3148,7 @@ modernpath read-doc [title-search] [flags]
 |---|---|---|---|
 | `--angle` | string |  | Filter by angle (e.g., architecture, api, data) |
 | `--id` | string |  | Document ID to retrieve |
-| `--list` | bool |  | List all available documents |
+| `--list` | bool |  | List available documents, optionally filtered by tier or angle |
 | `--tier` | string |  | Filter by tier (module, subsystem, architecture) |
 
 ## `modernpath read-file`
@@ -2137,6 +3175,62 @@ modernpath read-file <file-path> [flags]
 | `--end` | int | 0 | End line number (inclusive) |
 | `--start` | int | 0 | Start line number (1-based) |
 
+## `modernpath requirements`
+
+Find synced requirements
+
+```
+modernpath requirements [flags]
+```
+
+## `modernpath requirements list`
+
+List one page of compact requirement summaries
+
+List a bounded page of synced system and user requirement summaries.
+
+Use --cursor from a previous response to continue with the same filters. Full
+requirement content remains available through working-set pull.
+
+```
+modernpath requirements list [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--context` | string |  | exact context code |
+| `--cursor` | string |  | continue after a prior page |
+| `--json` | bool |  | emit items and next_cursor as JSON |
+| `--kind` | string |  | requirement kind: system or user |
+| `--limit` | int | 50 | page size (1–200) |
+| `--query` | string |  | literal case-insensitive substring in ID, title, or description |
+| `--status` | string |  | exact work_status |
+
+## `modernpath requirements search`
+
+Find requirements and test cases by name or meaning
+
+Find user requirements, system requirements and test cases of the bound
+system by id, display reference (UR-5, SR-12, TC-8), title, description or
+meaning, in one ranked list.
+
+Each hit shows its external id (or its display reference when it has none),
+kind, work status, name and how it matched: exact, semantic, or both. Hits
+found both ways come first. DERIVED requirements and unconfirmed test cases
+are found by exact match only and are marked candidate.
+
+For exact status filters use requirements list; for one requirement in full
+use working-set pull.
+
+```
+modernpath requirements search <query> [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--json` | bool |  | emit the query and items as JSON |
+| `--limit` | int | 10 | hits to return (1–25) |
+
 ## `modernpath requirements-corpus`
 
 Emit the store's requirement corpus (SR+UR) for the process gates
@@ -2160,6 +3254,325 @@ modernpath requirements-corpus [flags]
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
 | `--json` | bool |  | emit the corpus as a JSON array (owns stdout; REQ-CROSS-121) |
+
+## `modernpath reverse-engineer`
+
+Establish an authorized as-built baseline or review-only DERIVED proposals
+
+Bind the workspace and sync documentation first. Inventory every declared repository,
+read preflight, then ask the user to choose baseline or derived. Baseline publishes
+to Base/PENDING_VERIFICATION, not compliance approval or DONE. DERIVED proposals
+stay out of Ledger until an exact requirement-and-link decision is applied.
+
+All remote calls use the authenticated workspace binding. JSON inputs preserve
+nested citations, criteria and packets. Writes return durable receipts; retry the
+same run/group key and identical input after interruption. A conflict requires a
+fresh read and decision, not an automatic retry. No task-ledger import is used.
+
+```
+modernpath reverse-engineer [flags]
+```
+
+## `modernpath reverse-engineer acceptance-apply`
+
+Atomically apply an approved exact as-built packet and retain its receipt
+
+```
+modernpath reverse-engineer acceptance-apply [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | exact JSON intent file; - reads stdin (required) |
+| `--gate` | string |  | dedicated acceptance gate id (required) |
+
+## `modernpath reverse-engineer acceptance-open`
+
+Open the single human decision for an eligible exact as-built proof packet
+
+```
+modernpath reverse-engineer acceptance-open [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | exact JSON intent file; - reads stdin (required) |
+
+## `modernpath reverse-engineer acceptance-status`
+
+Read the recorded versus applied answer, current proof and durable receipt
+
+```
+modernpath reverse-engineer acceptance-status [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--gate` | string |  | dedicated acceptance gate id (required) |
+
+## `modernpath reverse-engineer authorize`
+
+Record the explicit source-scoped baseline or derived authorization
+
+Record what a person approved for one run: which source, which mode, on whose
+word. The request holds file paths, hashes and sizes. No file content is uploaded
+and nothing is published by this command.
+
+Build the authorization from the CLI's own outputs, saved unchanged:
+
+  modernpath reverse-engineer inventory --repository app=/abs/repo > inventory.json
+  modernpath reverse-engineer preflight > preflight.json
+  modernpath reverse-engineer authorize --inventory inventory.json --preflight preflight.json --mode baseline --source "USER:2026-10-02:Ann approved baseline, documents all" --key billing-baseline --documents all
+
+--inventory is the source list the person reviewed. --preflight pins the state
+of the requirements they saw. --mode and --documents are the person's choices,
+--source says who approved them and --key names the run. None has a default;
+--source and --key are at most 255 bytes. --documents all attaches every analysis
+document the preflight lists, so the run's requirements can cite them;
+--documents none attaches none, and requirements then cite code and tests only.
+
+If the server refuses, nothing was recorded:
+  stale_corpus                 the requirements changed; save preflight again
+  document_not_authorized      a document changed; save preflight again
+  document_snapshot_too_large  too much document text for one run; use --documents none
+
+A file built another way can be given with --file instead of the flags above.
+Its fields are key, mode, authorization_source, corpus_fingerprint, repositories, documents.
+The two forms cannot be mixed.
+
+```
+modernpath reverse-engineer authorize [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--documents` | string |  | all or none: attach the analysis documents the preflight lists, so requirements can cite them |
+| `--file` | string |  | exact JSON intent file, instead of the other flags; - reads stdin |
+| `--inventory` | string |  | saved output of reverse-engineer inventory; - reads stdin |
+| `--key` | string |  | a stable name for the run; the same key and content return the same run |
+| `--mode` | string |  | baseline or derived, as the person chose |
+| `--preflight` | string |  | saved output of reverse-engineer preflight; - reads stdin |
+| `--source` | string |  | who approved the run and what, starting with USER: |
+
+## `modernpath reverse-engineer candidates`
+
+Read typed candidate requirements and proposed links
+
+```
+modernpath reverse-engineer candidates [flags]
+```
+
+## `modernpath reverse-engineer capture-source`
+
+Capture exactly the authorized repository files; refuse changed bytes or symlinks
+
+```
+modernpath reverse-engineer capture-source [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--repository` | string |  | repository key in the authorization (required) |
+| `--root` | string |  | local repository directory (required; not sent to server) |
+| `--run` | string |  | authorized run id (required) |
+
+## `modernpath reverse-engineer coverage`
+
+Measure authorized inventory against current governed and candidate traces
+
+```
+modernpath reverse-engineer coverage [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--run` | string |  | authorized run id (required) |
+
+## `modernpath reverse-engineer decide`
+
+Apply the exact reviewed selection, fingerprint, USER source and retry key
+
+```
+modernpath reverse-engineer decide [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | exact JSON intent file; - reads stdin (required) |
+
+## `modernpath reverse-engineer delivery-proof`
+
+Fetch and retain a clean tested snapshot at the remote default-branch tip
+
+Observe that the clean tested revision is the tip of the remote default branch
+and retain the observation as evidence.
+
+Without --run the snapshot is the whole repository. With --run the snapshot is
+the files that run's authorization recorded for the repository: use it for a
+run that was inventoried with --path, so the proof measures the same files
+that were captured. The input's snapshot_digest must be the one that run captured.
+The repository must still be clean as a whole.
+
+```
+modernpath reverse-engineer delivery-proof [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | key, repository_key, local root, tested_revision and snapshot_digest JSON (required) |
+| `--run` | string |  | run whose authorized files are the snapshot, for a run inventoried with --path (optional; the whole repository when omitted) |
+
+## `modernpath reverse-engineer execution-proof`
+
+Retain genuine named execution and per-clause assertion proof; does not execute tests
+
+```
+modernpath reverse-engineer execution-proof [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | typed execution report JSON; - reads stdin (required) |
+
+## `modernpath reverse-engineer inventory`
+
+Inventory explicitly declared repositories, including non-Git roots and legacy source formats
+
+Read-only local inventory. Repeat --repository key=directory for every repository;
+the parent workspace need not be Git. Git worktrees use their tracked/unignored
+files. Non-Git roots are walked with explicit generated/secret exclusions.
+All safe regular files are included, including XML, JSP, XSL and XSLT. Review
+the returned exclusions and byte/file denominators before authorizing upload.
+No file bytes, local absolute paths or credentials are sent to the server.
+
+To baseline part of a large Git repository, repeat --path key=relative/path
+for the directories or files to include. Name the tests with the code they
+cover: one delivery proof covers one run. The inventory then holds only the
+files under those paths. The repository keeps its commit and its clean or dirty
+state, the size and file limits count the included files, and every file left
+out is listed as an exclusion. A path is a literal name: no patterns, no
+trailing slash. Non-Git roots cannot be scoped.
+
+A tracked symbolic link in a Git repository is left out and listed as an
+exclusion. It is never followed.
+
+```
+modernpath reverse-engineer inventory [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--path` | stringArray |  | limit a Git repository to a path, key=relative/path (repeatable); the rest is listed as exclusions |
+| `--repository` | stringArray |  | explicit repository identity and directory, key=directory (repeatable) |
+
+## `modernpath reverse-engineer preflight`
+
+Read current system scope, corpus fingerprint and recommended mode (read-only)
+
+```
+modernpath reverse-engineer preflight [flags]
+```
+
+## `modernpath reverse-engineer preview`
+
+Preview an exact typed candidate set without applying it
+
+```
+modernpath reverse-engineer preview [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | exact JSON intent file; - reads stdin (required) |
+
+## `modernpath reverse-engineer proof-preview`
+
+Preview exact existing assertion, execution and integration proof without lifecycle writes
+
+```
+modernpath reverse-engineer proof-preview [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | exact JSON intent file; - reads stdin (required) |
+
+## `modernpath reverse-engineer publish`
+
+Atomically publish one coherent requirement group under its run
+
+```
+modernpath reverse-engineer publish [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | exact JSON intent file; - reads stdin (required) |
+| `--group` | string |  | stable coherent-group retry key (required) |
+| `--run` | string |  | authorized run id (required) |
+
+## `modernpath reverse-engineer read-document`
+
+Read the exact authorized SystemDoc snapshot, never the live document
+
+```
+modernpath reverse-engineer read-document [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--document` | string |  | authorized SystemDoc id (required) |
+| `--run` | string |  | authorized run id (required) |
+
+## `modernpath reverse-engineer read-source`
+
+Read the exact captured source, base64 encoded; never falls back to latest
+
+```
+modernpath reverse-engineer read-source [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--source` | string |  | immutable source_file id (required) |
+
+## `modernpath reverse-engineer refresh-traces`
+
+Refresh confirmed captured code/test links on existing pending baselines; preserve requirement content
+
+```
+modernpath reverse-engineer refresh-traces [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--file` | string |  | exact JSON intent file; - reads stdin (required) |
+| `--group` | string |  | stable coherent-group retry key (required) |
+| `--run` | string |  | authorized run id (required) |
+
+## `modernpath reverse-engineer source-status`
+
+Read source capture status and immutable file identities
+
+```
+modernpath reverse-engineer source-status [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--capture` | string |  | source capture id (required) |
+
+## `modernpath reverse-engineer status`
+
+Read a durable run and its group receipts
+
+```
+modernpath reverse-engineer status [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--run` | string |  | authorized run id (required) |
 
 ## `modernpath scan`
 
@@ -2226,14 +3639,64 @@ modernpath search <query> [flags]
 | `--files-only` | bool |  | Search only file analyses |
 | `--limit` | int | 10 | Maximum results to return |
 
+## `modernpath source`
+
+The bound system's uploaded source
+
+The bound system's uploaded source: a system created by `modernpath import --local`
+holds a copy of the tree the CLI packed. `source push` sends the current tree
+so the knowledge core describes the new code.
+
+```
+modernpath source [flags]
+```
+
+## `modernpath source push`
+
+Push the working directory to the bound system's upload repository
+
+Push the working directory as the bound system's current source.
+
+The tree is packed with the same filters as `modernpath import --local`
+(skip lists, .gitignore, --exclude, --max-size) and its content revision is
+compared with the server's before anything is uploaded:
+
+  unchanged, refresh completed   nothing is uploaded or re-analysed (exit 0)
+  unchanged, refresh not done    the refresh is queued again, no upload (exit 0)
+  changed                        the archive is uploaded, the previous source
+                                 is superseded and an incremental refresh of
+                                 the knowledge core is queued (exit 0)
+
+A server refusal — the repository is being analysed, or it is linked to a
+git provider the platform refreshes itself — exits non-zero with the
+server's error code and message, so a CI job fails loudly. The command never
+prompts. The API URL and token come from the workspace config and
+environment, as for every other verb.
+
+Examples:
+  modernpath source push
+  modernpath source push --exclude fixtures --max-size 200
+
+```
+modernpath source push [flags]
+```
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--exclude` | stringArray |  | Exclude paths matching a name, path glob or basename glob (repeatable) |
+| `--max-size` | int | 100 | Maximum upload size in MB |
+| `--no-gitignore` | bool |  | Upload files that .gitignore excludes (off by default) |
+
 ## `modernpath status`
 
 Show current ModernPath status
 
-Display the current ModernPath project status including system, sync status, and documentation.
+Display the current ModernPath project status: the binding, what the bound
+server is serving (store revision and sync contract version, one read bounded
+at 2 s, no write), the process state, sync status, and documentation.
 
 ```
-modernpath status
+modernpath status [flags]
 ```
 
 ## `modernpath system-docs`
@@ -2253,7 +3716,7 @@ Examples:
   modernpath system-docs list
 
 ```
-modernpath system-docs
+modernpath system-docs [flags]
 ```
 
 ## `modernpath system-docs list`
@@ -2263,7 +3726,7 @@ List system documents
 List all documents attached to the current system.
 
 ```
-modernpath system-docs list
+modernpath system-docs list [flags]
 ```
 
 ## `modernpath system-docs pull`
@@ -2320,7 +3783,7 @@ List and download task context files
 List tasks for the active epic and fetch full context into .modernpath/tasks/<epic-slug>/.
 
 ```
-modernpath tasks
+modernpath tasks [flags]
 ```
 
 ## `modernpath tasks fetch`
@@ -2331,7 +3794,7 @@ Fetch full development context for every task in an epic and save each as
 .modernpath/tasks/<epic-slug>/<task-id>-<title-slug>.md
 
 ```
-modernpath tasks fetch [epic_id]
+modernpath tasks fetch [epic_id] [flags]
 ```
 
 ## `modernpath tasks list`
@@ -2341,7 +3804,7 @@ List tasks for an epic
 List all tasks for an epic. Uses the current epic from config if no ID is provided.
 
 ```
-modernpath tasks list [epic_id]
+modernpath tasks list [epic_id] [flags]
 ```
 
 ## `modernpath work`
@@ -2351,7 +3814,7 @@ Manage epics, tasks, and subtasks
 View and manage work items including epics, tasks, and subtasks.
 
 ```
-modernpath work
+modernpath work [flags]
 ```
 
 ## `modernpath work derive`
@@ -2368,7 +3831,7 @@ Analyze specifications and create actionable work items:
 This converts your specs into a complete development task plan.
 
 ```
-modernpath work derive
+modernpath work derive [flags]
 ```
 
 ## `modernpath work list`
@@ -2376,7 +3839,7 @@ modernpath work derive
 List epics for current system
 
 ```
-modernpath work list
+modernpath work list [flags]
 ```
 
 ## `modernpath work new`
@@ -2432,7 +3895,7 @@ Select an epic to work on
 Select an epic to set as the current epic in .modernpath/config.json. If no ID is provided, shows an interactive list.
 
 ```
-modernpath work select [epic_id]
+modernpath work select [epic_id] [flags]
 ```
 
 ## `modernpath work specs`
@@ -2442,7 +3905,7 @@ Manage specifications for an epic
 Generate, sync, and manage specifications for a ModernPath epic.
 
 ```
-modernpath work specs
+modernpath work specs [flags]
 ```
 
 ## `modernpath work specs generate`
@@ -2458,7 +3921,7 @@ Run the full 6-phase specification pipeline:
   6. Validation - Cross-check all outputs
 
 ```
-modernpath work specs generate
+modernpath work specs generate [flags]
 ```
 
 ## `modernpath work specs push`
@@ -2466,7 +3929,7 @@ modernpath work specs generate
 Push local specifications back to the ModernPath platform
 
 ```
-modernpath work specs push
+modernpath work specs push [flags]
 ```
 
 ## `modernpath work specs sync`
@@ -2474,7 +3937,7 @@ modernpath work specs push
 Download specifications to the active epic folder under .modernpath/tasks/
 
 ```
-modernpath work specs sync
+modernpath work specs sync [flags]
 ```
 
 ## `modernpath work status`
@@ -2484,7 +3947,7 @@ Show epic status (specs, tasks, progress)
 Display comprehensive status for the current epic including specs and tasks.
 
 ```
-modernpath work status
+modernpath work status [flags]
 ```
 
 ## `modernpath work subtasks`
@@ -2492,7 +3955,7 @@ modernpath work status
 List subtasks for a task
 
 ```
-modernpath work subtasks <task_id>
+modernpath work subtasks <task_id> [flags]
 ```
 
 ## `modernpath working-set`
@@ -2500,18 +3963,18 @@ modernpath work subtasks <task_id>
 Pull server state into .modernpath/working-set as uncommitted shape files
 
 ```
-modernpath working-set
+modernpath working-set [flags]
 ```
 
 Flags this command shares with its subcommands:
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
-| `--piece` | string |  | when you hold several current selections, name which one a read resolves (carried as ?scope=) |
+| `--piece` | string |  | when you hold several current selections, --piece names which one pull --scope, push and check resolve (by-id pulls do not use a selected piece) |
 
 ## `modernpath working-set check`
 
-Report stale working-set files; --refresh re-pulls them
+Check snapshot source and local body integrity; --refresh updates safely
 
 ```
 modernpath working-set check [flags]
@@ -2520,7 +3983,13 @@ modernpath working-set check [flags]
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
 | `--include-candidates` | bool |  | include DERIVED candidates in the requirements read (materialize a just-authored candidate) |
-| `--refresh` | bool |  | re-pull files reported stale |
+| `--refresh` | bool |  | refresh stale files; preserve edited or unverified originals and write fresh .pulled copies |
+
+Inherited from `modernpath working-set`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one pull --scope, push and check resolve (by-id pulls do not use a selected piece) |
 
 ## `modernpath working-set pull`
 
@@ -2532,9 +4001,16 @@ modernpath working-set pull [<external-id>...] [flags]
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
-| `--for-review` | bool |  | render the scope read-only for cold review, stamping a review context (with --scope) |
+| `--for-review` | bool |  | render the scope read-only for cold review, stamping a review context (with --scope); with a system requirement's id, render it for the small-change lane's narrow review |
 | `--include-candidates` | bool |  | include DERIVED candidates in the requirements read (materialize a just-authored candidate) |
-| `--scope` | bool |  | pull the current work selection's scope as an editable directory (authoring render) |
+| `--scope` | bool |  | pull the current work selection's scope as an editable directory (authoring render); packet/ is scaffolded with the required sections — reconnaissance, state inventory, red strategy, decisions, one enrichment per SR |
+| `--since` | string |  | with --scope --for-review: write REVIEW.md as the delta since this previous cold-review trace — what changed in full, the open findings, the previous verdict, the rest as id and fingerprint |
+
+Inherited from `modernpath working-set`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one pull --scope, push and check resolve (by-id pulls do not use a selected piece) |
 
 ## `modernpath working-set push`
 
@@ -2561,6 +4037,12 @@ modernpath working-set push [flags]
 |---|---|---|---|
 | `--dry-run` | bool |  | print the op plan without applying anything |
 | `--restamp` | bool |  | re-put every filled canonical section unchanged so the server re-stamps it at the current scope context |
+
+Inherited from `modernpath working-set`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one pull --scope, push and check resolve (by-id pulls do not use a selected piece) |
 
 ## `modernpath working-set select`
 
@@ -2597,6 +4079,7 @@ modernpath working-set select [<scope-external-id>] [flags]
 
 | Flag | Type | Default | Meaning |
 |---|---|---|---|
+| `--claim` | bool |  | with --resume: take over a colleague's parked piece (recorded on their row); a parked piece nobody holds needs no --claim |
 | `--fingerprint` | string |  | frozen-at fingerprint (default: workspace HEAD) |
 | `--kind` | string | epic | scope kind: epic\|single_sr |
 | `--lane` | string |  | planned (default) or defect — a customer-blocking defect is on the clock; process next, your-move and the session brief say so |
@@ -2606,11 +4089,18 @@ modernpath working-set select [<scope-external-id>] [flags]
 | `--phase` | string |  | current phase |
 | `--put-down` | bool |  | put down (close) the named current piece; carry --outcome done\|obsolete\|returned=<phase> |
 | `--reason` | string |  | suspension reason (required with --suspend) |
+| `--recon-revision` | string |  | the repository revision the scope's reconnaissance was taken at; `working-set status` reads it back as the Reconnaissance revision |
 | `--replaces` | string |  | the one current piece this take displaces (pair with --outcome); unnamed, the take adds a holder |
 | `--resume` | bool |  | resume the named suspended scope |
 | `--suspend` | bool |  | suspend the current selection |
 | `--target` | string |  | suspension target |
 | `--waiting-on` | string |  | gate id, blocker, or prerequisite |
+
+Inherited from `modernpath working-set`:
+
+| Flag | Type | Default | Meaning |
+|---|---|---|---|
+| `--piece` | string |  | when you hold several current selections, --piece names which one pull --scope, push and check resolve (by-id pulls do not use a selected piece) |
 
 ## `modernpath your-move`
 

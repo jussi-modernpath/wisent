@@ -19,7 +19,8 @@ order.
    a confirmation gate. Route directly sourced behavior to a `PROPOSED` UR or
    SR.
 3. Route missing human authority or ambiguity to a decision gate and apply
-   `BLOCKED` only when work cannot proceed honestly.
+   `BLOCKED` only when work cannot proceed honestly. Present the decision
+   brief and linked list of relevant working-set files before asking, following `PROCESS.md` §Gates.
 4. Route known future work to `DEFERRED` with an attributable human source for
    the postponement, capability/specification gaps to gap records, unclear
    ownership to backlog, and contradicted or removed behavior to an explicit
@@ -27,6 +28,13 @@ order.
 5. For feedback, determine whether one standalone or UR-linked SR can address
    it without changing user outcome, acceptance, or a cross-cutting decision.
    Otherwise route it to epic-scoped planning.
+   Reopen delivered work under the same identity (`PROCESS.md` §Attributable
+   demotions). Observed evidence invalidation is an automatic transition with
+   agent/check attribution and factual sources; human-directed demotion uses
+   a human gate and its `USER:` source. A reversed decision returns work to
+   `PROPOSED`. A defect or invalidated required evidence returns affected
+   requirements and Epics to `IN_PROGRESS`. Preserve prior acceptance receipts;
+   reopening does not waive the entry prerequisites for changing code or tests.
 6. Re-evaluate stale gates and evidence, then reconcile authoritative records,
    release scope, work selection, and derived views. Never promote to `TODO`
    without the strict entry gate.

@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "command -v modernpath >/dev/null 2>&1 && modernpath check --hook PreToolUse 2>/dev/null || printf '{}'",
+            "command": "MP=\"${CLAUDE_PROJECT_DIR:-$PWD}/.modernpath/hooks/modernpath\"; [ -x \"$MP\" ] || MP=modernpath; command -v \"$MP\" >/dev/null 2>&1 && \"$MP\" check --hook PreToolUse 2>/dev/null || printf '{}'",
             "timeout": 30,
             "type": "command"
           }
@@ -12,43 +12,12 @@
         "matcher": "Bash"
       }
     ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "command": "command -v modernpath >/dev/null 2>&1 && ( modernpath factory sync --if-quiescent --trigger SessionEnd >/dev/null 2>&1 & ) ; exit 0",
-            "timeout": 10,
-            "type": "command"
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "hooks": [
           {
-            "command": "command -v modernpath >/dev/null 2>&1 && ( modernpath factory sync --if-quiescent --trigger SessionStart >/dev/null 2>&1 & ) ; exit 0",
-            "timeout": 10,
-            "type": "command"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "command": "command -v modernpath >/dev/null 2>&1 && modernpath your-move --hook SessionStart 2>/dev/null || printf '{}'",
+            "command": "MP=\"${CLAUDE_PROJECT_DIR:-$PWD}/.modernpath/hooks/modernpath\"; [ -x \"$MP\" ] || MP=modernpath; command -v \"$MP\" >/dev/null 2>&1 && \"$MP\" your-move --hook SessionStart 2>/dev/null || printf '{}'",
             "timeout": 15,
-            "type": "command"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "command -v modernpath >/dev/null 2>&1 && ( modernpath factory sync --if-quiescent --trigger Stop >/dev/null 2>&1 & ) ; exit 0",
-            "timeout": 10,
             "type": "command"
           }
         ]
@@ -58,7 +27,7 @@
       {
         "hooks": [
           {
-            "command": "command -v modernpath >/dev/null 2>&1 && modernpath context --hook UserPromptSubmit 2>/dev/null || echo '{}'",
+            "command": "MP=\"${CLAUDE_PROJECT_DIR:-$PWD}/.modernpath/hooks/modernpath\"; [ -x \"$MP\" ] || MP=modernpath; command -v \"$MP\" >/dev/null 2>&1 && \"$MP\" context --hook UserPromptSubmit 2>/dev/null || echo '{}'",
             "timeout": 60,
             "type": "command"
           }
@@ -150,7 +119,25 @@
       "Bash(modernpath author gate-withdraw *)",
       "Bash(.modernpath/bin/modernpath author gate-withdraw *)",
       "Bash(modernpath process findings disposition *)",
-      "Bash(.modernpath/bin/modernpath process findings disposition *)"
+      "Bash(.modernpath/bin/modernpath process findings disposition *)",
+      "Bash(modernpath author apply *)",
+      "Bash(.modernpath/bin/modernpath author apply *)",
+      "Bash(modernpath process review record *)",
+      "Bash(.modernpath/bin/modernpath process review record *)",
+      "Bash(modernpath process advance *)",
+      "Bash(.modernpath/bin/modernpath process advance *)",
+      "Bash(modernpath process lane)",
+      "Bash(.modernpath/bin/modernpath process lane)",
+      "Bash(modernpath process lane review *)",
+      "Bash(.modernpath/bin/modernpath process lane review *)",
+      "Bash(modernpath process lane enter *)",
+      "Bash(.modernpath/bin/modernpath process lane enter *)",
+      "Bash(modernpath process lane check *)",
+      "Bash(.modernpath/bin/modernpath process lane check *)",
+      "Bash(modernpath process lane complete*)",
+      "Bash(.modernpath/bin/modernpath process lane complete*)",
+      "Bash(modernpath process reapply-entry *)",
+      "Bash(.modernpath/bin/modernpath process reapply-entry *)"
     ],
     "ask": [
       "Bash(modernpath factory release *)",
@@ -162,7 +149,15 @@
       "Bash(modernpath migrate *)",
       "Bash(.modernpath/bin/modernpath migrate *)",
       "Bash(modernpath env --set*)",
-      "Bash(.modernpath/bin/modernpath env --set*)"
+      "Bash(.modernpath/bin/modernpath env --set*)",
+      "Bash(modernpath process lane authorize*)",
+      "Bash(.modernpath/bin/modernpath process lane authorize*)",
+      "Bash(modernpath process lane approve*)",
+      "Bash(.modernpath/bin/modernpath process lane approve*)",
+      "Bash(modernpath process reenter *)",
+      "Bash(.modernpath/bin/modernpath process reenter *)",
+      "Bash(modernpath author demote *)",
+      "Bash(.modernpath/bin/modernpath author demote *)"
     ]
   }
 }

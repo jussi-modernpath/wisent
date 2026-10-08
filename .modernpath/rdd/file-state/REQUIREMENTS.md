@@ -19,6 +19,7 @@
 - **UR content:** «actor, context, intended outcome, and inline scenarios; N/A for SR»
 - **SR content:** «boundary, behavior, scope/non-goals, and technical context; N/A for UR»
 - **Candidate packet:** «inference sources, proposed relations, consequences, and confirmation brief; DERIVED only»
+- **Onboarding authority:** «source-scoped run authorization and group receipt, or exact candidate-set decision; N/A for ordinary authored intent»
 
 ### Trace references
 
@@ -29,12 +30,14 @@
 
 The RED/Passing split carries each result's role; `Outcome`, `Environment`,
 and `Fingerprint` carry the remaining mandated evidence-record fields.
+RED is required only on the applicable normal-development path; the
+existing-baseline path does not fabricate it.
 
 ### Gates and delivery
 
 - **Confirmation gates:** «GATES.md gate ids, or N/A»
-- **Entry gates:** «GATES.md gate ids»
-- **Start/review gates:** «GATES.md gate ids»
-- **Completion gates:** «GATES.md gate ids»
+- **Entry gates:** «GATES.md gate ids; N/A for the dedicated existing-baseline path»
+- **Start/review gates:** «GATES.md gate ids, or N/A»
+- **Completion gates:** «normal completion or dedicated existing-baseline GATES.md gate ids»
 - **Delivered revision:** «repository + revision or not delivered»
 - **Gaps / deferrals / blockers / notes:** «refs or none»
