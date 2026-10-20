@@ -91,6 +91,7 @@ achievable bar we actually landed, and why.
 | Walking-person tracking | calibration is a *dwell* localizer; on walking legs it changes nothing (2.7 m → 2.8 m median). Unsolved. |
 | Signed per-link Doppler on real humans | our own ground-truth-free cross-check fails on hardware (~51% self-disagreement vs ~1% synthetic). The channel is **gated off**; `docs/signed-doppler.md` documents the negative. |
 | Breathing rate | plausible 10–12 bpm inter-link agreement over a sofa with two seated people, but **zero ground truth**, and we caught our own earlier reading being a filter artifact (the "rate" tracked the detrend cutoff). |
+| Multi-rate breathing lines (`estimate_rates`) | **synthetic only**: two simulated breathers at 12/18 bpm give two lines on 5/5 seeds, but slow drift produces false lines (≈ 8–10 bpm, 5/5 drift seeds), and lines are spectral lines, not a count of sources or people. No hardware evidence. |
 | Pose, identity, heart rate | physically closed on 1×1 radios at 2.4 GHz — `docs/theory.md` §5 explains why we refuse these. |
 | The pre-registered 80% localization bar | leave-one-out 5/5 is strong evidence, **not** the bar: that requires a fresh blind run against frozen calibration, which we ran out of time for. |
 

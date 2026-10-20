@@ -25,7 +25,7 @@ constraints there (1×1 radio ⇒ no usable absolute phase ⇒ amplitude + geome
 
 ## Current state (2026-07-29)
 
-- **Suites: `validate_synthetic.py` 9/9, `validate_protocol.py` 33/33.** Run both:
+- **Suites: `validate_synthetic.py` 22/22, `validate_protocol.py` 40/40.** Run both:
   `cd host && python scripts/validate_synthetic.py && python scripts/validate_protocol.py`
 - **Layers 0–2 are proven on real hardware** with 3× ESP32-S3 (1 beacon + 2 listeners):
   beacon at `hz=100.00`, 97–99.7% reception, CRC 0.0000%, 0 gaps over 10 min, and 48082
@@ -79,7 +79,7 @@ exception to amplitude-only (CLAUDE.md conventions; theory.md §2).
 ## Build / test commands
 
 - Host tests: `cd host && python scripts/validate_synthetic.py && python scripts/validate_protocol.py`
-  (both must stay at 9/9 and 33/33; `validate_protocol.py` needs a working `cc`)
+  (both must stay at 22/22 and 40/40; `validate_protocol.py` needs a working `cc`)
 - Deps: `pip install -r host/requirements.txt` (numpy, scipy only; keep it that way)
 - Firmware: `arduino-cli compile --fqbn esp32:esp32:esp32s3:CDCOnBoot=default firmware/beacon`
   then `arduino-cli upload -p <port> --fqbn <same> firmware/beacon` (see Hardware notes)

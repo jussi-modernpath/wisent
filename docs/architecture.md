@@ -159,11 +159,20 @@ subcarriers), mean RSSI. This bus is the only interface Layers 3–4 may consume
 - **breathing.py**: gated on `E < still_threshold`; subcarrier top-5 selection in resp band,
   multi-link Welch periodogram fusion (sum of normalized PSDs), peak → bpm with a
   peak-to-median prominence gate (reject if < 3×: "no confident reading" beats a wrong one).
+  - `estimate_rates()` (Epic 282) is the descriptive multi-rate report: every prominent
+    in-band peak per link (≥ 60 s windows), per-link overtones marked, peaks clustered across
+    links by Welch bin into **lines** (≥ 2 links), **harmonics** and **single-link** peaks,
+    plus a disagreement flag. Lines are spectral lines, **not sources or people**, and there
+    is no count. It has no stillness or drift gate either, and slow drift (static channel or
+    posture) produces false lines near the 8 s detrend shoulder (≈ 6.5–10 bpm in
+    simulation), which can relabel a real line at 2× or 3× as its harmonic. Synthetic and
+    constructed evidence only; not wired into the live UI.
 - Fusion rules **(specified, not yet wired)**: breathing only reported when motion says
   still; map only trusted after a 30 s empty-room calibration stored per deployment.
-  `estimate_bpm()` is currently callable without any stillness check, and doing so on real
-  data produced a confident filter artifact (docs/signed-doppler.md §Limitations) — the
-  gate must become code, not prose.
+  `estimate_bpm()` and `estimate_rates()` are currently callable without any stillness
+  check, and doing so on real data produced a confident filter artifact (docs/handoff.md
+  §Breathing detail, lines 71–73: the rate tracked the detrend cutoff) — the gate must
+  become code, not prose.
 
 ## Layer 4 — Learned heads (M4+, optional)
 
