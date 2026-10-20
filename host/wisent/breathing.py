@@ -121,8 +121,9 @@ def estimate_rates(clean_links, fs, band=RESP_BAND, top_k=5, prominence_ratio=3.
       3x as its harmonic, or hide it on links where the artifact is the stronger peak;
     - a harmonic better supported than its fundamental is a line; intermodulation lines and
       chance noise peaks on two links are lines too;
-    - rates in adjacent bins (up to ~3 bpm apart) merge; a real line at 2x or 3x a stronger
-      peak or a co-occurring, at-least-as-supported lower cluster is labelled a harmonic;
+    - rates in adjacent bins (up to ~3 bpm apart) merge; a real line at 2x or 3x is marked
+      an overtone on a link where a stronger peak sits at its 1/2 or 1/3, and labelled a
+      harmonic of a co-occurring, at-least-as-supported lower cluster;
     - the 0.6 Hz bin falls outside the inherited band mask by float rounding, so the
       effective upper edge is 34.5 bpm.
     """

@@ -332,6 +332,8 @@ check("signed-doppler-unfold", ok,
 # (the Epic 282 feasibility layout). Seeds are fixed and never tuned: a failing seed is a
 # real FAIL. Harmonic labels are checked on CONSTRUCTED spectra only — across 120 simulated
 # link runs no link's dominant peak was a harmonic.
+import inspect
+
 from scipy.signal import welch
 from wisent.breathing import estimate_rates, _psd_peaks
 
@@ -588,8 +590,37 @@ def _clauses():
         psd = np.array([1.0, 1.0, 1.0, 6.0, 6.0, 1.0, 1.1, 1.0, 1.2, 2.5, 1.0, 1.0])
         return [jj for jj, _ in _psd_peaks(psd, np.arange(1, 11), 3.0)] == [3]
 
+    keys = {"lines", "harmonics", "single_link", "rates_bpm", "n_links_used", "disagreement",
+            "link_peaks"}
+
+    def t():  # exact result shape: no count key, ascending lists, record fields, rates_bpm
+        def shaped(r):
+            recs_ok = all(
+                set(cl) == ({"rate_bpm", "links", "support"}
+                            | ({"of_bpm", "order"} if part == "harmonics" else set()))
+                and cl["support"] == len(cl["links"]) and cl["links"] == sorted(set(cl["links"]))
+                for part in ("lines", "harmonics", "single_link") for cl in r[part])
+            ascending = all(rates_of(r[part]) == sorted(rates_of(r[part]))
+                            for part in ("lines", "harmonics", "single_link"))
+            return (set(r) == keys and recs_ok and ascending
+                    and r["rates_bpm"] == rates_of(r["lines"]))
+        r1 = estimate_rates(C([[(11.0, 1.0), (22.0, 0.2)]] * 4 + [[(11.0, 0.3), (22.0, 1.0)]] * 2, 1), FS)
+        r2 = estimate_rates(C([[(9.0, 1.0)]] * 6 + [[(18.0, 1.0)]] * 4 + [[(27.0, 1.0)]], 1), FS)
+        return (shaped(r1) and shaped(r2) and r1["harmonics"] and len(r2["lines"]) == 2
+                and r2["single_link"])
+
+    def u():  # disagreement counts lines AND single-link clusters: 1 line + 1 single -> True
+        r = estimate_rates(C([[(14.0, 1.0)]] * 3 + [[(24.0, 1.0)]], 1), FS)
+        return len(r["lines"]) == 1 and len(r["single_link"]) == 1 and r["disagreement"] is True
+
+    def v():  # the window cutoff is int(60*fs) samples: one sample short is not used
+        lk = C([[(14.0, 1.0)]] * 3, 1)
+        r = estimate_rates([lk[0][: int(60 * FS) - 1], lk[1][: int(60 * FS)], lk[2]], FS)
+        return (r["link_peaks"][0] is None and r["link_peaks"][1] is not None
+                and r["n_links_used"] == 2)
+
     subs = dict(a=a, b=b, c=c, d=d, e=e, f=f, g=g, h=h, i=i, j=j, k=k, l=l, m=m, n=n, o=o,
-                p=p, q=q, r=r_, s=s)
+                p=p, q=q, r=r_, s=s, t=t, u=u, v=v)
     failed = []
     for name, fn in subs.items():
         try:
@@ -598,7 +629,7 @@ def _clauses():
             ok = False
         if not ok:
             failed.append(name)
-    return not failed, (f"all {len(subs)} constructed sub-assertions (a)-(s) hold" if not failed
+    return not failed, (f"all {len(subs)} constructed sub-assertions (a)-(v) hold" if not failed
                         else f"FAILED {len(failed)}/{len(subs)} sub-assertions: {', '.join(failed)}")
 
 
@@ -686,9 +717,11 @@ def _fused_unchanged():
     new0, old0 = estimate_bpm(lk, FS), _estimate_bpm_52ddd8d(lk, FS)
     new1 = estimate_bpm(lk, FS, return_links=True)
     old1 = _estimate_bpm_52ddd8d(lk, FS, return_links=True)
-    ok = new0 == old0 and new1 == old1
+    same_sig = inspect.signature(estimate_bpm) == inspect.signature(_estimate_bpm_52ddd8d)
+    ok = new0 == old0 and new1 == old1 and same_sig
     return ok, (f"estimate_bpm equals the frozen 52ddd8d copy exactly (return_links False and "
                 f"True; 11 links incl. a skipped 1 s link): {'identical' if ok else 'DIFFERS'}, "
+                f"signature {'unchanged' if same_sig else 'CHANGED'}, "
                 f"bpm {old0[0]}, {len(old1[2])} link peaks")
 
 
