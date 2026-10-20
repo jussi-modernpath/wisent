@@ -10,7 +10,7 @@ starting product work:
 1. `.modernpath/rdd/AGENTS.md` — binding shared agent rules;
 2. `.modernpath/rdd/PROCESS.md` — the canonical process: authority, items,
    traces, lifecycles, planning, development, evidence and human completion. It names phases and required exits and never
-   names a verb;
+   names a command;
 3. the procedures under `.modernpath/rdd/skills/` — the path is not
    agent-specific: follow them as checklists whatever agent you are (Claude
    Code also discovers byte-identical copies under `.claude/skills/`).
@@ -34,8 +34,13 @@ starting product work:
      with typed traces to source files;
    - `rdd-reverse-engineer-verify` — verify existing behavior with criterion-level execution evidence;
    - `rdd-reverse-engineer-accept` — obtain explicit human acceptance and publish verified existing behavior;
-   - `rdd-audit` — shared utility the other passes invoke: resolve citations,
+   - `rdd-audit` — shared utility the other passes invoke: inspect native Traces,
      diff inventories both directions, judge whether a measurement is real.
+4. `.modernpath/cli-reference.md` — the installed `modernpath` binary's commands,
+   flags, JSON file shapes, the phase-to-command map of the loop and the refusal
+   glossary, rendered by `modernpath install` from the binary itself. The
+   skills say what a pass records; this says how. Look a command or a file
+   format up there rather than guessing it.
 
 The CLI ships `mp-knowledge-search` for reading local analysis and live
 knowledge documents. The delegated cold review runs in
@@ -44,8 +49,7 @@ the agent definition the CLI installs at `.claude/agents/rdd-cold-reviewer.md`
 session records them. The reviewer is installed for Claude Code
 (`.claude/agents/*.md`) and Codex (`.codex/agents/*.toml`), which Cursor also
 reads; its role is written for any harness. The former workspace `rdd-audit` and `rdd-reverse-engineer` are
-now package skills — the citation auditor installs at
-`.modernpath/rdd/skills/rdd-audit/audit-citations.mjs`.
+now package skills; `rdd-audit` inspects native Traces, endpoints and evidence.
 
 Project instructions may add stack, commands, architecture, domain, and safety
 rules. On conflict the process wins (see "Instruction ownership" in

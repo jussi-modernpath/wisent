@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "MP=\"${CLAUDE_PROJECT_DIR:-$PWD}/.modernpath/hooks/modernpath\"; [ -x \"$MP\" ] || MP=modernpath; command -v \"$MP\" >/dev/null 2>&1 && \"$MP\" context --hook UserPromptSubmit 2>/dev/null || echo '{}'",
+            "timeout": 60,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ]
+  }
+}
