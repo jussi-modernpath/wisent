@@ -162,6 +162,44 @@ def simulate_link_amp(tx, rx, traj, fs=100.0, n_sc=52, refl_gain=2.0,
     return amp
 
 
+def simulate_link_amp_multi(tx, rx, trajs, fs=100.0, n_sc=52, refl_gain=2.0,
+                            noise=0.02, agc=True, static_drift=0.0, rng=None) -> np.ndarray:
+    """Amplitude CSI (T, n_sc) for one link and SEVERAL scatterer trajectories (T, 2) each,
+    whose dynamic terms are summed. Generate each trajectory once and pass the same list
+    to every link: one body, one motion, seen from several links.
+
+    static_drift: RMS fraction of a slow per-subcarrier random walk on the static path
+    (thermal/environment drift). A construction whose realism is unknown — it exists to
+    exhibit the 8 s detrend-shoulder artifact (docs/handoff.md), not to validate against.
+    RNG draw order: static phase, drift (only if static_drift > 0), noise, AGC.
+    Kept separate from simulate_link_amp so that function's draw order stays bit-identical.
+    """
+    rng = rng if rng is not None else np.random.default_rng(0)
+    tx = np.asarray(tx, float)
+    rx = np.asarray(rx, float)
+    trajs = [np.asarray(tr, float) for tr in trajs]
+
+    lam = C / subcarrier_freqs(n_sc)
+    T = len(trajs[0])
+    H_static = np.exp(1j * rng.uniform(0, 2 * np.pi, n_sc))[None, :]
+    if static_drift > 0:
+        w = np.cumsum(rng.standard_normal((T, n_sc)), axis=0)
+        w -= w.mean(axis=0)
+        w *= static_drift / (w.std() + 1e-12)
+        H_static = H_static * (1.0 + w)
+    H = np.broadcast_to(H_static, (T, n_sc)).astype(complex)
+    for traj in trajs:
+        r1 = np.linalg.norm(traj - tx, axis=1)
+        r2 = np.linalg.norm(traj - rx, axis=1)
+        a = refl_gain / np.maximum(r1 * r2, 0.25)
+        H = H + a[:, None] * np.exp(-1j * 2 * np.pi * (r1 + r2)[:, None] / lam[None, :])
+    H = H + noise * (rng.standard_normal((T, n_sc)) + 1j * rng.standard_normal((T, n_sc)))
+    amp = np.abs(H)
+    if agc:  # erratic per-frame gain, as measured on real ESP32s
+        amp = amp * rng.uniform(0.5, 2.0, (T, 1))
+    return amp.astype(np.float32)
+
+
 # ---- trajectories ----
 
 def breathing_traj(p0, direction, fs, dur_s, bpm, depth_m=0.005, rng=None):
@@ -173,6 +211,33 @@ def breathing_traj(p0, direction, fs, dur_s, bpm, depth_m=0.005, rng=None):
     disp = depth_m * np.sin(2 * np.pi * (bpm / 60.0) * t)
     sway = 0.0005 * rng.standard_normal((len(t), 2))  # sub-mm body sway
     return np.asarray(p0, float)[None, :] + disp[:, None] * u[None, :] + sway
+
+
+def breathing_traj_shaped(p0, direction, fs, dur_s, bpm, bpm_end=None, depth_m=0.005,
+                          h2=0.0, sway_m=0.0, rng=None):
+    """breathing_traj with a shape: second-harmonic chest motion of relative amplitude h2,
+    a linear rate ramp bpm -> bpm_end, and a slow posture random walk of RMS sway_m.
+
+    The posture walk is a construction whose realism is unknown (like static_drift in
+    simulate_link_amp_multi). RNG draw order: body jitter, then the posture walk (only if
+    sway_m > 0). breathing_traj is left untouched for its seeded draw order.
+    """
+    rng = rng if rng is not None else np.random.default_rng(1)
+    t = np.arange(int(dur_s * fs)) / fs
+    bpm_end = bpm if bpm_end is None else bpm_end
+    f_inst = (bpm + (bpm_end - bpm) * t / dur_s) / 60.0
+    ph = 2 * np.pi * np.cumsum(f_inst) / fs
+    disp = depth_m * (np.sin(ph) + h2 * np.sin(2 * ph + 0.7))
+    u = np.asarray(direction, float)
+    u = u / (np.linalg.norm(u) + 1e-12)
+    pos = np.asarray(p0, float)[None, :] + disp[:, None] * u[None, :]
+    pos = pos + 0.0005 * rng.standard_normal((len(t), 2))  # sub-mm body sway
+    if sway_m > 0:  # slow posture drift: a random walk scaled to sway_m RMS
+        w = np.cumsum(rng.standard_normal((len(t), 2)), axis=0)
+        w -= w.mean(axis=0)
+        w *= sway_m / (w.std() + 1e-12)
+        pos = pos + w
+    return pos
 
 
 def jitter_traj(p0, fs, dur_s, step_m=0.02, extent_m=0.15, rng=None):

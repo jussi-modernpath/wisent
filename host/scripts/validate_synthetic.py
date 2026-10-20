@@ -7,6 +7,11 @@ Checks, in order:
   2. VRTI: fidgeting person localized to < 1.5 m in a 6x6 m room, 5 nodes / 10 links.
   3. LinkBVP: walker at 1.0 m/s, heading 45 deg — folded heading error < 25 deg,
      speed within 30%, using the VRTI position estimate (not ground truth).
+  4. Signed Doppler (docs/signed-doppler.md): sign, oscillation gate, strong-LoS delay
+     gradient, magnitude consistency, hardware layout, unfolded heading.
+  5. Multi-rate breathing lines (Epic 282): estimate_rates on simulated rooms (seeds 1-5)
+     and constructed spectra — lines, harmonic and single-link labels, disagreement, the
+     documented drift limitation — and estimate_bpm pinned to a frozen 52ddd8d copy.
 
 Run: cd host && python scripts/validate_synthetic.py
 """
@@ -318,6 +323,388 @@ check("signed-doppler-unfold", ok,
       f"(err {h_err_s:.1f}, mirror rejected by {mirror_gap:.0f} deg, "
       f"{res_s['n_links']} links, speed {res_s['speed']:.2f})" if res_s
       else "inversion returned None")
+
+# ---------- 5. multi-rate breathing lines (Epic 282: SR-1592, UR-256) ----------
+# estimate_rates reports every supported respiratory-band spectral line across links, with
+# harmonic and single-link labels and a disagreement flag. Lines are NOT sources or people.
+# Room checks: the 10-link room above, 60 s, seeds 1-5. Breather j's trajectory uses
+# default_rng(seed*10 + j) and is shared by all links; link k uses default_rng(seed*1000 + k)
+# (the Epic 282 feasibility layout). Seeds are fixed and never tuned: a failing seed is a
+# real FAIL. Harmonic labels are checked on CONSTRUCTED spectra only — across 120 simulated
+# link runs no link's dominant peak was a harmonic.
+from scipy.signal import welch
+from wisent.breathing import estimate_rates, _psd_peaks
+
+ROOM_SEEDS = (1, 2, 3, 4, 5)
+CENTRE = np.array([3.0, 3.0])
+
+
+def breathing_room(breathers, seed, dur_s=60.0, static_drift=0.0):
+    """Sanitised amplitude of the 10 room links; breathers are breathing_traj_shaped kwargs."""
+    trajs = [sim.breathing_traj_shaped(fs=FS, dur_s=dur_s,
+                                       rng=np.random.default_rng(seed * 10 + j), **b)
+             for j, b in enumerate(breathers)]
+    if not trajs:  # empty room: one static scatterer far away, as in the control above
+        trajs = [np.tile(np.array([[20.0, 20.0]]), (int(dur_s * FS), 1))]
+    return [sanitize(sim.simulate_link_amp_multi(a, b, trajs, fs=FS, static_drift=static_drift,
+                                                 rng=np.random.default_rng(seed * 1000 + k)),
+                     FS, detrend_win_s=8.0)
+            for k, (a, b) in enumerate(links)]
+
+
+def facing_centre(p0, bpm, **kw):
+    return dict(p0=p0, direction=CENTRE - np.asarray(p0, float), bpm=bpm, **kw)
+
+
+def constructed_links(spec, seed, dur_s=60.0):
+    """CONSTRUCTED (not simulated) clean link amplitude, 52 subcarriers per link: white noise
+    (0.02 RMS) plus, per (bpm, amplitude) component, a sinusoid with a random phase and a
+    0.5-1.5x amplitude spread on each subcarrier. spec holds one component list per link."""
+    rng = np.random.default_rng(seed)
+    t = np.arange(int(dur_s * FS)) / FS
+    out = []
+    for comps in spec:
+        x = 0.02 * rng.standard_normal((len(t), 52))
+        for bpm_c, a in comps:
+            ph = rng.uniform(0, 2 * np.pi, 52)
+            amps = a * rng.uniform(0.5, 1.5, 52)
+            x += amps[None, :] * np.sin(2 * np.pi * bpm_c / 60.0 * t[:, None] + ph[None, :])
+        out.append(x)
+    return out
+
+
+def rates_of(clusters):
+    return [c["rate_bpm"] for c in clusters]
+
+
+def near(rates, target, tol=1.0):
+    return [r for r in rates if abs(r - target) <= tol]
+
+
+def fmt(r):
+    return (f"lines {[round(x, 1) for x in rates_of(r['lines'])]} "
+            f"harm {[(round(h['rate_bpm'], 1), round(h['of_bpm'], 1), h['order']) for h in r['harmonics']]} "
+            f"single {[round(x, 1) for x in rates_of(r['single_link'])]} "
+            f"dis {r['disagreement']} used {r['n_links_used']}")
+
+
+def run_check(name, fn):
+    """A missing, empty or malformed result prints [FAIL], never a traceback."""
+    try:
+        ok, detail = fn()
+    except Exception as e:
+        ok, detail = False, f"raised {type(e).__name__}: {e}"
+    check(name, bool(ok), detail)
+
+
+def per_seed(breathers, accept, **kw):
+    """Run estimate_rates on each room seed; accept(result) -> bool. Returns (ok, detail)."""
+    oks, rows = [], []
+    for s in ROOM_SEEDS:
+        r = estimate_rates(breathing_room(breathers, s, **kw), FS)
+        ok_s = bool(accept(r))
+        oks.append(ok_s)
+        rows.append(f"s{s} {[round(x, 1) for x in rates_of(r['lines'])]}" if ok_s
+                    else f"s{s} FAIL {fmt(r)}")
+    return all(oks), f"{sum(oks)}/{len(oks)} seeds: " + "; ".join(rows)
+
+
+TWO_BREATHERS = [facing_centre((1.5, 1.5), 12.0), facing_centre((4.5, 4.5), 18.0)]
+
+
+def _multi_source():
+    def accept(r):
+        L = sorted(rates_of(r["lines"]))
+        return (len(L) == 2 and abs(L[0] - 12.0) <= 1.0 and abs(L[1] - 18.0) <= 1.0
+                and all(c["support"] >= 2 for c in r["lines"])
+                and r["disagreement"] is True and r["n_links_used"] == 10)
+    ok, d = per_seed(TWO_BREATHERS, accept)
+    return ok, f"breathers at 12 and 18 bpm -> 2 lines, disagreement, 10 links; {d}"
+
+
+def _multi_harmonic():
+    r = estimate_rates(constructed_links([[(11.0, 1.0), (22.0, 0.2)]] * 4
+                                         + [[(11.0, 0.3), (22.0, 1.0)]] * 2, 1), FS)
+    L, H = r["lines"], r["harmonics"]
+    ok = (len(L) == 1 and abs(L[0]["rate_bpm"] - 11.0) <= 1.0
+          and len(H) == 1 and abs(H[0]["rate_bpm"] - 22.0) <= 1.5
+          and abs(H[0]["of_bpm"] - 11.0) <= 1.0 and H[0]["order"] == 2
+          and r["disagreement"] is False)
+    return ok, f"constructed 4x(11 + weak 22) + 2x(22 dominant) -> 1 line, 22 an order-2 harmonic: {fmt(r)}"
+
+
+def _multi_single_source():
+    def accept(r):
+        L = rates_of(r["lines"])
+        return len(L) == 1 and abs(L[0] - 15.0) <= 1.0 and r["disagreement"] is False
+    ok, d = per_seed([dict(p0=(3.0, 3.0), direction=(1.0, 0.0), bpm=15.0)], accept)
+    return ok, f"one breather at 15 bpm -> 1 line, no disagreement; {d}"
+
+
+def _multi_empty_room():
+    def accept(r):
+        return (not r["lines"] and not r["harmonics"] and not r["single_link"]
+                and r["disagreement"] is False and r["n_links_used"] == 10)
+    ok, d = per_seed([], accept)
+    return ok, f"empty room -> nothing, disagreement false, 10 links; {d}"
+
+
+def _multi_disagreement():
+    r = estimate_rates(constructed_links([[(28.8, 1.0)], [(34.0, 1.0)]], 1), FS)
+    S = sorted(rates_of(r["single_link"]))
+    ok = (not r["lines"] and len(S) == 2 and abs(S[0] - 28.8) <= 1.0
+          and abs(S[1] - 34.0) <= 1.0 and r["disagreement"] is True)
+    return ok, f"constructed 2 links at 28.8 / 34.0 bpm (the logged disagreement's shape): {fmt(r)}"
+
+
+def _multi_nonsine():
+    def accept(r):
+        L = rates_of(r["lines"])
+        return len(L) == 1 and abs(L[0] - 12.0) <= 1.0 and r["disagreement"] is False
+    ok, d = per_seed([facing_centre((1.5, 1.5), 12.0, h2=0.5, depth_m=0.010)], accept)
+    return ok, f"one 12 bpm breather, 50% second harmonic, 10 mm -> exactly 1 line; {d}"
+
+
+def _multi_min_links():
+    r = estimate_rates(constructed_links([[(14.0, 1.0)]] * 3 + [[(24.0, 1.0)]], 1), FS)
+    L, S = r["lines"], r["single_link"]
+    ok = (len(L) == 1 and abs(L[0]["rate_bpm"] - 14.0) <= 1.0
+          and len(S) == 1 and abs(S[0]["rate_bpm"] - 24.0) <= 1.0 and S[0]["support"] == 1)
+    return ok, f"constructed 3x14 + 1x24 -> 14 a line, 24 single-link: {fmt(r)}"
+
+
+def _clauses():
+    C = constructed_links
+
+    def all_clusters(r):
+        return r["lines"] + r["harmonics"] + r["single_link"]
+
+    def entry(lp, target, tol=0.75):
+        hits = [e for e in lp if abs(e[0] - target) <= tol]
+        return hits[0] if len(hits) == 1 else None
+
+    def a():  # a link shorter than 60 s is not used; the others keep their positions
+        lk = C([[(14.0, 1.0)]] * 3, 1)
+        lk.insert(1, lk[0][: int(30 * FS)])
+        r = estimate_rates(lk, FS)
+        lp = r["link_peaks"]
+        return (lp[1] is None and r["n_links_used"] == 3
+                and all(lp[i] and abs(lp[i][0][0] - 14.0) <= 1.0 for i in (0, 2, 3)))
+
+    def b():  # no usable link: abstain (true negative — also holds for the stub)
+        r = estimate_rates([x[: int(30 * FS)] for x in C([[(14.0, 1.0)]] * 3, 1)], FS)
+        return (r["n_links_used"] == 0 and r["disagreement"] is None
+                and not all_clusters(r) and r["link_peaks"] == [None] * 3)
+
+    def c():  # two tones on one link: two entries, strongest first, neither an overtone
+        lp = estimate_rates(C([[(12.0, 1.0), (18.0, 0.8)]] + [[(12.0, 1.0)]] * 2, 1), FS)["link_peaks"][0]
+        return (len(lp) == 2 and abs(lp[0][0] - 12.0) <= 0.75 and abs(lp[1][0] - 18.0) <= 0.75
+                and lp[0][1] >= lp[1][1] and lp[0][2] is None and lp[1][2] is None)
+
+    def d():  # a weaker 2x peak on the same link is an overtone and joins no cluster
+        r = estimate_rates(C([[(11.0, 1.0), (22.0, 0.4)]] + [[(11.0, 1.0)]] * 2, 1), FS)
+        e = entry(r["link_peaks"][0], 22.5)
+        return (e is not None and e[2] is not None and abs(e[2] - 11.0) <= 1.0
+                and not near(rates_of(all_clusters(r)), 22.0, 1.5))
+
+    def e():  # the strongest entry equals estimate_bpm's single-link peak exactly
+        lk = C([[(12.0, 1.0), (18.0, 0.5)]] * 3, 1)
+        first = estimate_rates(lk, FS)["link_peaks"][0][0]
+        return first[:2] == estimate_bpm([lk[0]], FS, return_links=True)[2][0]
+
+    def f():  # adjacent bins form one cluster at the (prominence - 1)-weighted mean rate
+        r = estimate_rates(C([[(12.0, 1.0)], [(13.5, 0.4)]], 1), FS)
+        cl = all_clusters(r)
+        m = [(bpm_e, p) for lp in r["link_peaks"] for bpm_e, p, ov in lp if ov is None]
+        want = sum((p - 1.0) * bpm_e for bpm_e, p in m) / sum(p - 1.0 for _, p in m)
+        return (len(cl) == 1 and cl[0]["links"] == [0, 1]
+                and 12.0 < cl[0]["rate_bpm"] < 13.5 and abs(cl[0]["rate_bpm"] - want) <= 1e-9)
+
+    def g():  # a chain of occupied adjacent bins is one cluster
+        cl = all_clusters(estimate_rates(C([[(12.0, 1.0)], [(13.5, 1.0)], [(15.0, 1.0)]], 1), FS))
+        return len(cl) == 1 and cl[0]["support"] == 3
+
+    def h():  # support counts distinct links, not peaks
+        cl = all_clusters(estimate_rates(C([[(12.0, 1.0), (15.0, 1.0)], [(13.5, 1.0)]], 1), FS))
+        return len(cl) == 1 and cl[0]["support"] == 2 and cl[0]["links"] == [0, 1]
+
+    def i():  # disjoint links, harmonic better supported: both guards apply
+        r = estimate_rates(C([[(11.0, 1.0)]] * 2 + [[(22.0, 1.0)]] * 4, 1), FS)
+        return (len(near(rates_of(r["lines"]), 11.0)) == 1 and len(near(rates_of(r["lines"]), 22.0)) == 1
+                and not r["harmonics"])
+
+    def j():  # the harmonic test is on integer bins: 13.5 is 2x the 6.0 bin
+        H = estimate_rates(C([[(6.7, 1.0), (13.4, 0.2)]] * 4 + [[(6.7, 0.3), (13.4, 1.0)]] * 2, 1),
+                           FS)["harmonics"]
+        return (len(H) == 1 and abs(H[0]["rate_bpm"] - 13.5) <= 0.75
+                and abs(H[0]["of_bpm"] - 6.0) <= 0.75 and H[0]["order"] == 2)
+
+    def k():  # the LOWEST qualifying lower cluster is the fundamental
+        H = estimate_rates(C([[(6.0, 1.0), (9.0, 1.0)]] * 4
+                             + [[(18.0, 1.0), (6.0, 0.5), (9.0, 0.5)]] * 2, 1), FS)["harmonics"]
+        return (len(H) == 1 and abs(H[0]["rate_bpm"] - 18.0) <= 0.75
+                and abs(H[0]["of_bpm"] - 6.0) <= 0.75 and H[0]["order"] == 3)
+
+    def l():  # prominence_ratio must exceed 1
+        try:
+            estimate_rates(C([[(12.0, 1.0)]] * 2, 1), FS, prominence_ratio=1.0)
+        except ValueError:
+            return True
+        return False
+
+    def m():  # the lower edge bin (6 bpm) can hold a peak
+        L = estimate_rates(C([[(6.0, 1.0)]] * 3, 1), FS)["lines"]
+        return len(L) == 1 and abs(L[0]["rate_bpm"] - 6.0) <= 0.75 and L[0]["support"] == 3
+
+    def n():  # support guard alone: 22 is better supported than 11, so not its harmonic
+        r = estimate_rates(C([[(22.0, 1.0), (11.0, 0.5)]] * 2 + [[(22.0, 1.0)]] * 2, 1), FS)
+        return (len(near(rates_of(r["lines"]), 11.0)) == 1 and len(near(rates_of(r["lines"]), 22.0)) == 1
+                and not r["harmonics"])
+
+    def o():  # co-occurrence guard alone: 18 shares no link with the 9 line
+        r = estimate_rates(C([[(9.0, 1.0)]] * 6 + [[(18.0, 1.0)]] * 4, 1), FS)
+        return (len(near(rates_of(r["lines"]), 9.0)) == 1 and len(near(rates_of(r["lines"]), 18.0)) == 1
+                and not r["harmonics"])
+
+    def p():  # an order-3 overtone on one link (8 bpm lands on the 7.5 bin)
+        lp = estimate_rates(C([[(8.0, 1.0), (24.0, 0.4)]] + [[(8.0, 1.0)]] * 2, 1), FS)["link_peaks"][0]
+        e24 = entry(lp, 24.0)
+        return e24 is not None and e24[2] is not None and abs(e24[2] - 7.5) <= 1e-9
+
+    def q():  # overtones are marked against KEPT peaks only: 24 is n=4 of 6, 12 is not kept
+        r = estimate_rates(C([[(6.0, 1.0), (12.0, 0.5), (24.0, 0.3)]] + [[(6.0, 1.0)]] * 2, 1), FS)
+        lp = r["link_peaks"][0]
+        e12, e24 = entry(lp, 12.0), entry(lp, 24.0)
+        S24 = [cl for cl in r["single_link"] if abs(cl["rate_bpm"] - 24.0) <= 0.75]
+        return (e12 is not None and e12[2] is not None and abs(e12[2] - 6.0) <= 0.75
+                and e24 is not None and e24[2] is None
+                and len(S24) == 1 and S24[0]["support"] == 1)
+
+    def r_():  # the 0.6 Hz bin is outside the inherited band mask: a 36 bpm tone finds nothing
+        r = estimate_rates(C([[(36.0, 1.0)]] * 3, 1), FS)
+        return r["n_links_used"] == 3 and r["link_peaks"] == [[], [], []] and not all_clusters(r)
+
+    def s():  # peak picker: a plateau yields its lower bin; a sub-ratio local maximum none
+        psd = np.array([1.0, 1.0, 1.0, 6.0, 6.0, 1.0, 1.1, 1.0, 1.2, 2.5, 1.0, 1.0])
+        return [jj for jj, _ in _psd_peaks(psd, np.arange(1, 11), 3.0)] == [3]
+
+    subs = dict(a=a, b=b, c=c, d=d, e=e, f=f, g=g, h=h, i=i, j=j, k=k, l=l, m=m, n=n, o=o,
+                p=p, q=q, r=r_, s=s)
+    failed = []
+    for name, fn in subs.items():
+        try:
+            ok = bool(fn())
+        except Exception:
+            ok = False
+        if not ok:
+            failed.append(name)
+    return not failed, (f"all {len(subs)} constructed sub-assertions (a)-(s) hold" if not failed
+                        else f"FAILED {len(failed)}/{len(subs)} sub-assertions: {', '.join(failed)}")
+
+
+def _known_limits():
+    # (iii) ASSERTED, deterministic: a well-supported low line (e.g. a drift artifact)
+    # relabels a co-occurring real line at 2x as its harmonic.
+    r = estimate_rates(constructed_links([[(9.0, 0.5), (18.0, 1.0)]] * 4
+                                         + [[(9.0, 0.5)]] * 2, 1), FS)
+    H = [c for c in r["harmonics"] if abs(c["rate_bpm"] - 18.0) <= 1.0]
+    ok = (len(near(rates_of(r["lines"]), 9.0)) == 1 and not near(rates_of(r["lines"]), 18.0)
+          and len(H) == 1 and H[0]["order"] == 2 and abs(H[0]["of_bpm"] - 9.0) <= 1.0)
+    return ok, (f"(iii) constructed 6x9 + 4x stronger 18 -> 18 relabelled an order-2 harmonic "
+                f"of the 9 line: {fmt(r)}")
+
+
+def report_limit(label, breathers, **kw):
+    """REPORTED, never asserted (Epic 282 decision 10): a change here is reported at
+    completion and the docs updated — seeds and models are never tuned to move it."""
+    try:
+        rows = []
+        for s in ROOM_SEEDS:
+            r = estimate_rates(breathing_room(breathers, s, **kw), FS)
+            rows.append(f"s{s} lines {[round(x, 1) for x in rates_of(r['lines'])]} harm "
+                        f"{[(round(c['rate_bpm'], 1), round(c['of_bpm'], 1)) for c in r['harmonics']]}")
+        print(f"    KNOWN LIMITATION (reported): {label}: " + "; ".join(rows))
+    except Exception as e:
+        print(f"    KNOWN LIMITATION (reported): {label}: not computed ({type(e).__name__}: {e})")
+
+
+def _estimate_bpm_52ddd8d(clean_links, fs, band=(0.1, 0.6), top_k=5, prominence_ratio=3.0,
+                          return_links=False):
+    """FROZEN ORACLE — wisent.breathing.estimate_bpm exactly as at revision 52ddd8d (code
+    verbatim, docstring dropped). Never edit it: SR-1592 criterion 5 pins estimate_bpm to it."""
+    fused = None
+    freqs = None
+    link_peaks = []
+    for clean in clean_links:
+        T = clean.shape[0]
+        nperseg = min(T, int(fs * 40))
+        f, P = welch(clean, fs=fs, nperseg=nperseg, axis=0)
+        mask = (f >= band[0]) & (f <= band[1])
+        if not mask.any():
+            continue
+        # top-k subcarriers by in-band power: dodge per-subcarrier Fresnel blind spots
+        in_band_power = P[mask].sum(axis=0)
+        top = np.argsort(in_band_power)[-top_k:]
+        psd = P[:, top].mean(axis=1)
+        psd = psd / (psd.sum() + 1e-18)
+        # this link's own peak + prominence (weight, and per-link report)
+        _idx = np.where(mask)[0]
+        _i = _idx[int(np.argmax(psd[_idx]))]
+        _prom = float(psd[_i] / (np.median(psd[_idx]) + 1e-18))
+        link_peaks.append((float(f[_i] * 60.0), _prom))
+        w = max(_prom - 1.0, 0.0)
+        fused = psd * w if fused is None else fused + psd * w
+        freqs = f
+    if fused is None or fused.sum() <= 0:
+        return (None, 0.0, link_peaks) if return_links else (None, 0.0)
+
+    mask = (freqs >= band[0]) & (freqs <= band[1])
+    idx = np.where(mask)[0]
+    i = idx[int(np.argmax(fused[idx]))]
+    conf = float(fused[i] / (np.median(fused[idx]) + 1e-18))
+    if conf < prominence_ratio:
+        return (None, conf, link_peaks) if return_links else (None, conf)
+
+    # parabolic interpolation for sub-bin rate resolution
+    if 0 < i < len(fused) - 1:
+        a, b, c = fused[i - 1], fused[i], fused[i + 1]
+        denom = a - 2 * b + c
+        delta = 0.5 * (a - c) / denom if abs(denom) > 1e-18 else 0.0
+        delta = float(np.clip(delta, -0.5, 0.5))
+    else:
+        delta = 0.0
+    df = freqs[1] - freqs[0]
+    bpm = float((freqs[i] + delta * df) * 60.0)
+    if return_links:
+        return bpm, conf, link_peaks
+    return bpm, conf
+
+
+def _fused_unchanged():
+    lk = breathing_room(TWO_BREATHERS, 1)
+    lk.insert(3, lk[0][: int(1 * FS)])  # 1 s: no Welch bin falls in the band, link skipped
+    new0, old0 = estimate_bpm(lk, FS), _estimate_bpm_52ddd8d(lk, FS)
+    new1 = estimate_bpm(lk, FS, return_links=True)
+    old1 = _estimate_bpm_52ddd8d(lk, FS, return_links=True)
+    ok = new0 == old0 and new1 == old1
+    return ok, (f"estimate_bpm equals the frozen 52ddd8d copy exactly (return_links False and "
+                f"True; 11 links incl. a skipped 1 s link): {'identical' if ok else 'DIFFERS'}, "
+                f"bpm {old0[0]}, {len(old1[2])} link peaks")
+
+
+run_check("breathing-multi-source", _multi_source)
+run_check("breathing-multi-harmonic", _multi_harmonic)
+run_check("breathing-multi-single-source", _multi_single_source)
+run_check("breathing-multi-empty-room", _multi_empty_room)
+run_check("breathing-multi-disagreement", _multi_disagreement)
+run_check("breathing-multi-nonsine", _multi_nonsine)
+run_check("breathing-multi-min-links", _multi_min_links)
+run_check("breathing-multi-clauses", _clauses)
+run_check("breathing-multi-known-limits", _known_limits)
+report_limit("(i) empty room + 2% slow static-channel drift", [], static_drift=0.02)
+report_limit("(ii) one 15 bpm breather + 5 mm slow posture sway",
+             [dict(p0=(3.0, 3.0), direction=(1.0, 0.0), bpm=15.0, sway_m=0.005)])
+run_check("breathing-fused-unchanged", _fused_unchanged)
 
 # ---------- summary ----------
 n_ok = sum(ok for _, ok in results)

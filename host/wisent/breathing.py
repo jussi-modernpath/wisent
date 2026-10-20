@@ -71,3 +71,16 @@ def estimate_bpm(clean_links, fs, band=RESP_BAND, top_k=5, prominence_ratio=3.0,
     if return_links:
         return bpm, conf, link_peaks
     return bpm, conf
+
+
+def estimate_rates(clean_links, fs, band=RESP_BAND, top_k=5, prominence_ratio=3.0,
+                   min_links=2):
+    """STUB (Epic 282 red-first commit): returns the full result shape and finds nothing."""
+    return {"lines": [], "harmonics": [], "single_link": [], "rates_bpm": [],
+            "n_links_used": 0, "disagreement": None,
+            "link_peaks": [None] * len(clean_links)}
+
+
+def _psd_peaks(psd, idx, prominence_ratio):
+    """STUB (Epic 282 red-first commit): finds no peaks."""
+    return []
