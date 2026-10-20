@@ -169,10 +169,11 @@ subcarriers), mean RSSI. This bus is the only interface Layers 3–4 may consume
     constructed evidence only; not wired into the live UI.
 - Fusion rules **(specified, not yet wired)**: breathing only reported when motion says
   still; map only trusted after a 30 s empty-room calibration stored per deployment.
-  `estimate_bpm()` and `estimate_rates()` are currently callable without any stillness
-  check, and doing so on real data produced a confident filter artifact (docs/handoff.md
-  §Breathing detail, lines 71–73: the rate tracked the detrend cutoff) — the gate must
-  become code, not prose.
+  `estimate_bpm()` and `estimate_rates()` are both currently callable without any
+  stillness check. Running the breathing estimate on real data that way produced a
+  confident filter artifact (docs/handoff.md §Breathing detail, lines 71–73: the rate
+  tracked the detrend cutoff). `estimate_rates()` has not been run on real data, but it
+  sees the same 8 s detrend. The gate must become code, not prose.
 
 ## Layer 4 — Learned heads (M4+, optional)
 

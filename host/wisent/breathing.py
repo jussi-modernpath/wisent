@@ -89,7 +89,8 @@ def estimate_rates(clean_links, fs, band=RESP_BAND, top_k=5, prominence_ratio=3.
     clean_links: list of sanitized amp arrays (T, S), one per link, from a STILL window.
     There is no motion or drift gate (docs/architecture.md): the caller must pass a still
     window. A link shorter than 60 s is not used — with a single 40 s Welch segment, chance
-    noise peaks on two links made false lines (2/20 empty-room seeds at 40 s, 0/20 at 60 s).
+    noise peaks on two links made false lines (Epic 282's scratch feasibility runs, not in
+    this repo: 2/20 simulated empty-room seeds at 40 s, 0/20 at 60 s).
 
     Per link, on the same unit-sum top-k PSD and band mask as estimate_bpm, every in-band
     local maximum whose peak/in-band-median ratio is at least prominence_ratio is a peak.

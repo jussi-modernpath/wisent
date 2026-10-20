@@ -330,8 +330,9 @@ check("signed-doppler-unfold", ok,
 # Room checks: the 10-link room above, 60 s, seeds 1-5. Breather j's trajectory uses
 # default_rng(seed*10 + j) and is shared by all links; link k uses default_rng(seed*1000 + k)
 # (the Epic 282 feasibility layout). Seeds are fixed and never tuned: a failing seed is a
-# real FAIL. Harmonic labels are checked on CONSTRUCTED spectra only — across 120 simulated
-# link runs no link's dominant peak was a harmonic.
+# real FAIL. Harmonic labels are checked on CONSTRUCTED spectra only — in Epic 282's scratch
+# feasibility runs (not in this repo), no link's dominant peak was a harmonic in 120
+# simulated link runs.
 import inspect
 
 from scipy.signal import welch
@@ -619,8 +620,28 @@ def _clauses():
         return (r["link_peaks"][0] is None and r["link_peaks"][1] is not None
                 and r["n_links_used"] == 2)
 
+    def harmonic_of_9(r):
+        H = r["harmonics"]
+        return (len(near(rates_of(r["lines"]), 9.0)) == 1 and not near(rates_of(r["lines"]), 18.0)
+                and len(H) == 1 and abs(H[0]["rate_bpm"] - 18.0) <= 0.75
+                and abs(H[0]["of_bpm"] - 9.0) <= 0.75 and H[0]["order"] == 2)
+
+    def w():  # support guard is "at least": EQUAL support still labels the harmonic
+        return harmonic_of_9(estimate_rates(C([[(18.0, 1.0), (9.0, 0.5)]] * 3, 1), FS))
+
+    def x():  # co-occurrence is "at least half": exactly half of its links shared suffices
+        return harmonic_of_9(estimate_rates(C([[(9.0, 1.0)]] * 2 + [[(18.0, 1.0), (9.0, 0.5)]] * 2
+                                              + [[(18.0, 1.0)]] * 2, 1), FS))
+
+    def y():  # overtone of the first MATCHING kept peak, not only the strongest (21 > 6 > 12)
+        lp = estimate_rates(C([[(21.0, 1.0), (6.0, 0.7), (12.0, 0.4)]] + [[(6.0, 1.0)]] * 2, 1),
+                            FS)["link_peaks"][0]
+        e21, e12 = entry(lp, 21.0), entry(lp, 12.0)
+        return (e21 is not None and e21[2] is None and lp[0] == e21
+                and e12 is not None and e12[2] is not None and abs(e12[2] - 6.0) <= 0.75)
+
     subs = dict(a=a, b=b, c=c, d=d, e=e, f=f, g=g, h=h, i=i, j=j, k=k, l=l, m=m, n=n, o=o,
-                p=p, q=q, r=r_, s=s, t=t, u=u, v=v)
+                p=p, q=q, r=r_, s=s, t=t, u=u, v=v, w=w, x=x, y=y)
     failed = []
     for name, fn in subs.items():
         try:
@@ -629,7 +650,7 @@ def _clauses():
             ok = False
         if not ok:
             failed.append(name)
-    return not failed, (f"all {len(subs)} constructed sub-assertions (a)-(v) hold" if not failed
+    return not failed, (f"all {len(subs)} constructed sub-assertions (a)-(y) hold" if not failed
                         else f"FAILED {len(failed)}/{len(subs)} sub-assertions: {', '.join(failed)}")
 
 
